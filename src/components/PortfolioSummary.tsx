@@ -22,9 +22,10 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     // Positive = net credit received, Negative = net debit paid
     const netCashFlow = totalCredits - totalDebits;
     
-    // Total exposure (sum of strike × quantity × 100 for all positions)
-    // This represents the notional value at risk
-    const totalExposure = positions.reduce((sum, p) => sum + (p.strike * p.quantity * 100), 0);
+    // Total exposure only for Sell Put positions (obligation to buy stock at strike if assigned)
+    // For Buy Put, Sell Call, Buy Call - exposure is just the premium paid (not calculated here)
+    const sellPutPositions = positions.filter(p => p.side === 'sell' && p.optionType === 'put');
+    const totalExposure = sellPutPositions.reduce((sum, p) => sum + (p.strike * p.quantity * 100), 0);
     
     // For MVP, P&L is 0 until we add live prices
     const totalPnL = 0;

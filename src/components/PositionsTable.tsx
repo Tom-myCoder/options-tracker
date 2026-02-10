@@ -40,9 +40,8 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
+    <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+      <table className="w-full min-w-max">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -96,8 +95,10 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
               // For display: buys show as negative (money out), sells show as positive (money in)
               const cashFlow = isBuy ? -notional : notional;
               
-              // Exposure = strike price × quantity × 100 (represents the notional value at risk)
-              const exposure = position.strike * position.quantity * 100;
+              // Exposure only applies to Sell Put (obligation to buy stock at strike if assigned)
+              // For Buy Put, Sell Call, Buy Call - exposure is just the premium paid
+              const isSellPut = position.side === 'sell' && position.optionType === 'put';
+              const exposure = isSellPut ? position.strike * position.quantity * 100 : null;
               
               const dte = calculateDaysToExpiry(position.expiry);
               
@@ -172,7 +173,7 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                     </span>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {formatCurrency(exposure)}
+                    {exposure ? formatCurrency(exposure) : '-'}
                   </td>
                   <td className={`px-4 py-4 whitespace-nowrap font-medium ${
                     pnl >= 0 ? 'text-green-600' : 'text-red-600'
@@ -198,7 +199,6 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
             })}
           </tbody>
         </table>
-      </div>
     </div>
   );
 }
