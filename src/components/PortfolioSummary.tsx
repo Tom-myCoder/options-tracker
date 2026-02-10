@@ -1,6 +1,6 @@
 'use client';
 
-import { OptionPosition, PortfolioSummary } from '@/types/options';
+import { OptionPosition } from '@/types/options';
 
 interface PortfolioSummaryProps {
   positions: OptionPosition[];

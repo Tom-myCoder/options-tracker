@@ -11,11 +11,3 @@ export interface OptionPosition {
   entryDate: string;
   notes?: string;
 }
-
-export interface PortfolioSummary {
-  totalPositions: number;
-  totalInvested: number;
-  currentValue: number;
-  totalPnL: number;
-  totalPnLPercent: number;
-}
