@@ -22,8 +22,9 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     // Positive = net credit received, Negative = net debit paid
     const netCashFlow = totalCredits - totalDebits;
     
-    // Total exposure (sum of all notional values)
-    const totalExposure = positions.reduce((sum, p) => sum + (p.entryPrice * p.quantity * 100), 0);
+    // Total exposure (sum of strike × quantity × 100 for all positions)
+    // This represents the notional value at risk
+    const totalExposure = positions.reduce((sum, p) => sum + (p.strike * p.quantity * 100), 0);
     
     // For MVP, P&L is 0 until we add live prices
     const totalPnL = 0;

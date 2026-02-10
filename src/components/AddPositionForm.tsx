@@ -58,7 +58,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-900 mb-1">
             Ticker Symbol
           </label>
           <input
@@ -72,7 +72,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-900 mb-1">
             Option Type
           </label>
           <select
@@ -86,7 +86,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-900 mb-1">
             Side
           </label>
           <select
@@ -100,7 +100,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-900 mb-1">
             Strike Price ($)
           </label>
           <input
@@ -115,7 +115,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-900 mb-1">
             Expiry Date
           </label>
           <input
@@ -128,7 +128,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-900 mb-1">
             Quantity (Contracts)
           </label>
           <input
@@ -142,7 +142,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-gray-900 mb-1">
             Entry Price per Contract ($)
           </label>
           <input
@@ -158,7 +158,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       </div>
 
       <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-semibold text-gray-900 mb-1">
           Notes (optional)
         </label>
         <textarea

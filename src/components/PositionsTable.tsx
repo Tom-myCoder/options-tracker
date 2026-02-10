@@ -70,7 +70,13 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                 Entry
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Current
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Cash Flow
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Exposure
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 P&L
@@ -89,6 +95,10 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
               const isBuy = position.side === 'buy';
               // For display: buys show as negative (money out), sells show as positive (money in)
               const cashFlow = isBuy ? -notional : notional;
+              
+              // Exposure = strike price × quantity × 100 (represents the notional value at risk)
+              const exposure = position.strike * position.quantity * 100;
+              
               const dte = calculateDaysToExpiry(position.expiry);
               
               // P&L calculation (will use live price when available)
@@ -147,6 +157,12 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                   <td className="px-4 py-4 whitespace-nowrap text-gray-900">
                     {formatCurrency(position.entryPrice)}
                   </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    {formatCurrency(currentPrice)}
+                    {currentPrice === position.entryPrice && (
+                      <span className="text-xs text-gray-400 ml-1">(est.)</span>
+                    )}
+                  </td>
                   <td className={`px-4 py-4 whitespace-nowrap font-medium ${
                     cashFlow >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
@@ -154,6 +170,9 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                     <span className="text-xs text-gray-500 ml-1">
                       ({isBuy ? 'debit' : 'credit'})
                     </span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
+                    {formatCurrency(exposure)}
                   </td>
                   <td className={`px-4 py-4 whitespace-nowrap font-medium ${
                     pnl >= 0 ? 'text-green-600' : 'text-red-600'
