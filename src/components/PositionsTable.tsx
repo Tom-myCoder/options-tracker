@@ -105,23 +105,18 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
               
               const dte = calculateDaysToExpiry(position.expiry);
               
-              // P&L calculation (will use live price when available)
-              // If no currentPrice is present (we'll pull it from Yahoo later), leave current blank and P&L = 0
-              const currentPrice = (typeof position.currentPrice !== 'undefined') ? position.currentPrice : null;
-              let priceDiff = 0;
-              let pnl = 0;
-              let pnlPercent = 0;
-              if (currentPrice !== null) {
-                priceDiff = currentPrice - position.entryPrice;
-                // Buy: profit when price goes up
-                // Sell: profit when price goes down
-                pnl = isBuy
-                  ? priceDiff * position.quantity * 100
-                  : -priceDiff * position.quantity * 100;
-                pnlPercent = position.entryPrice > 0
-                  ? (isBuy ? (priceDiff / position.entryPrice) : (-priceDiff / position.entryPrice)) * 100
-                  : 0;
-              }
+              // P&L calculation using live market data when available
+              const hasLivePrice = typeof position.currentPrice === 'number' && position.currentPrice > 0;
+              const currentPrice = hasLivePrice ? position.currentPrice : position.entryPrice;
+              const priceDiff = hasLivePrice ? currentPrice - position.entryPrice : 0;
+              // Buy: profit when price goes up
+              // Sell: profit when price goes down
+              const pnl = hasLivePrice
+                ? (isBuy ? priceDiff : -priceDiff) * position.quantity * 100
+                : 0;
+              const pnlPercent = hasLivePrice && position.entryPrice > 0
+                ? (isBuy ? (priceDiff / position.entryPrice) : (-priceDiff / position.entryPrice)) * 100
+                : 0;
               
               return (
                 <tr key={position.id} className="hover:bg-gray-50">
@@ -167,9 +162,13 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                     {formatCurrency(position.entryPrice)}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                    {formatCurrency(currentPrice)}
-                    {currentPrice === position.entryPrice && (
-                      <span className="text-xs text-gray-400 ml-1">(est.)</span>
+                    {hasLivePrice ? (
+                      <>
+                        {formatCurrency(currentPrice)}
+                        <span className="text-xs text-green-600 ml-1">●</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">-</span>
                     )}
                   </td>
                   <td className={`px-4 py-4 whitespace-nowrap font-medium ${
@@ -184,12 +183,18 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                     {exposure !== null ? formatCurrency(exposure) : '-'}
                   </td>
                   <td className={`px-4 py-4 whitespace-nowrap font-medium ${
-                    pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                    !hasLivePrice ? 'text-gray-400' : pnl >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
-                    <span className="text-xs text-gray-500 ml-1">
-                      ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%)
-                    </span>
+                    {hasLivePrice ? (
+                      <>
+                        {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                        <span className="text-xs text-gray-500 ml-1">
+                          ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%)
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-gray-900">
                     {position.broker || '-'}

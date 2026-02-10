@@ -32,3 +32,9 @@ export const deletePosition = (id: string): void => {
 export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 15);
 };
+
+// Batch update positions with new prices
+export const updatePositions = (positions: OptionPosition[]): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+};

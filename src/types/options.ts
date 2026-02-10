@@ -11,4 +11,5 @@ export interface OptionPosition {
   entryDate: string;
   notes?: string;
   broker?: string;
+  lastPriceUpdate?: number; // timestamp of last price fetch
 }
