@@ -7,22 +7,34 @@ interface PortfolioSummaryProps {
 }
 
 export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
-  const calculateSummary = (): PortfolioSummary => {
+  const calculateSummary = () => {
     const totalPositions = positions.length;
-    const totalInvested = positions.reduce((sum, p) => sum + (p.entryPrice * p.quantity * 100), 0);
+    const buyPositions = positions.filter(p => p.side === 'buy');
+    const sellPositions = positions.filter(p => p.side === 'sell');
     
-    // For MVP, assume current price = entry price (no live pricing yet)
-    // TODO: Add live price fetching
-    const currentValue = totalInvested;
-    const totalPnL = currentValue - totalInvested;
-    const totalPnLPercent = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
+    // Total debits (money paid for buys)
+    const totalDebits = buyPositions.reduce((sum, p) => sum + (p.entryPrice * p.quantity * 100), 0);
+    
+    // Total credits (money received from sells)
+    const totalCredits = sellPositions.reduce((sum, p) => sum + (p.entryPrice * p.quantity * 100), 0);
+    
+    // Net cash flow (credits - debits)
+    // Positive = net credit received, Negative = net debit paid
+    const netCashFlow = totalCredits - totalDebits;
+    
+    // Total exposure (sum of all notional values)
+    const totalExposure = positions.reduce((sum, p) => sum + (p.entryPrice * p.quantity * 100), 0);
+    
+    // For MVP, P&L is 0 until we add live prices
+    const totalPnL = 0;
 
     return {
       totalPositions,
-      totalInvested,
-      currentValue,
+      totalDebits,
+      totalCredits,
+      netCashFlow,
+      totalExposure,
       totalPnL,
-      totalPnLPercent,
     };
   };
 
@@ -36,27 +48,35 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
       <div className="bg-white rounded-lg shadow-md p-4">
         <p className="text-sm text-gray-600 mb-1">Total Positions</p>
         <p className="text-2xl font-bold text-gray-900">{summary.totalPositions}</p>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Total Invested</p>
-        <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalInvested)}</p>
+        <p className="text-sm text-gray-600 mb-1">Total Debits (Buys)</p>
+        <p className="text-2xl font-bold text-red-600">-{formatCurrency(summary.totalDebits)}</p>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Current Value</p>
-        <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.currentValue)}</p>
+        <p className="text-sm text-gray-600 mb-1">Total Credits (Sells)</p>
+        <p className="text-2xl font-bold text-green-600">+{formatCurrency(summary.totalCredits)}</p>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Total P&L</p>
-        <p className={`text-2xl font-bold ${summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-          {summary.totalPnL >= 0 ? '+' : ''}{formatCurrency(summary.totalPnL)}
+        <p className="text-sm text-gray-600 mb-1">Net Cash Flow</p>
+        <p className={`text-2xl font-bold ${summary.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
         </p>
+        <p className="text-xs text-gray-500 mt-1">
+          {summary.netCashFlow >= 0 ? 'Net Credit' : 'Net Debit'}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <p className="text-sm text-gray-600 mb-1">Total Exposure</p>
+        <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalExposure)}</p>
       </div>
     </div>
   );

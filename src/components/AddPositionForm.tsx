@@ -12,6 +12,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
   const [formData, setFormData] = useState({
     ticker: '',
     optionType: 'call' as 'call' | 'put',
+    side: 'buy' as 'buy' | 'sell',
     strike: '',
     expiry: '',
     quantity: '',
@@ -26,6 +27,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       id: generateId(),
       ticker: formData.ticker.toUpperCase(),
       optionType: formData.optionType,
+      side: formData.side,
       strike: parseFloat(formData.strike),
       expiry: formData.expiry,
       quantity: parseInt(formData.quantity),
@@ -41,6 +43,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
     setFormData({
       ticker: '',
       optionType: 'call',
+      side: 'buy',
       strike: '',
       expiry: '',
       quantity: '',
@@ -79,6 +82,20 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           >
             <option value="call">Call</option>
             <option value="put">Put</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Side
+          </label>
+          <select
+            value={formData.side}
+            onChange={(e) => setFormData({ ...formData, side: e.target.value as 'buy' | 'sell' })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="buy">Buy (Long/Debit)</option>
+            <option value="sell">Sell (Short/Credit)</option>
           </select>
         </div>
 
