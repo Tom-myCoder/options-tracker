@@ -70,7 +70,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             placeholder="NVDA"
             value={formData.ticker}
             onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
 
@@ -81,7 +81,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <select
             value={formData.optionType}
             onChange={(e) => setFormData({ ...formData, optionType: e.target.value as 'call' | 'put' })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           >
             <option value="call">Call</option>
             <option value="put">Put</option>
@@ -95,7 +95,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <select
             value={formData.side}
             onChange={(e) => setFormData({ ...formData, side: e.target.value as 'buy' | 'sell' })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           >
             <option value="buy">Buy (Long/Debit)</option>
             <option value="sell">Sell (Short/Credit)</option>
@@ -113,7 +113,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             placeholder="120.00"
             value={formData.strike}
             onChange={(e) => setFormData({ ...formData, strike: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
 
@@ -126,7 +126,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             required
             value={formData.expiry}
             onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           />
         </div>
 
@@ -140,7 +140,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             placeholder="1"
             value={formData.quantity}
             onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
 
@@ -155,7 +155,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             placeholder="5.00"
             value={formData.entryPrice}
             onChange={(e) => setFormData({ ...formData, entryPrice: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
 
@@ -169,7 +169,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             placeholder="5.50"
             value={formData.currentPrice}
             onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
       </div>
@@ -182,7 +182,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           placeholder="Strategy, thesis, stop loss, etc."
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           rows={2}
         />
       </div>

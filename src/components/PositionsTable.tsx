@@ -41,7 +41,7 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-      <table className="w-full min-w-max">
+      <table className="w-full min-w-[1200px] table-auto">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -173,7 +173,7 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                     </span>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {exposure ? formatCurrency(exposure) : '-'}
+                    {exposure !== null ? formatCurrency(exposure) : '-'}
                   </td>
                   <td className={`px-4 py-4 whitespace-nowrap font-medium ${
                     pnl >= 0 ? 'text-green-600' : 'text-red-600'
