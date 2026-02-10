@@ -35,13 +35,18 @@ export async function GET(request: NextRequest) {
     }
     
     // Fallback: fetch underlying stock price
-    const quote = await yahooFinance.quote(ticker.toUpperCase());
+    const quote = await yahooFinance.quote(ticker.toUpperCase()) as {
+      symbol: string;
+      regularMarketPrice?: number;
+      regularMarketChange?: number;
+      regularMarketChangePercent?: number;
+    };
     
     return NextResponse.json({
       symbol: quote.symbol,
-      price: quote.regularMarketPrice,
-      change: quote.regularMarketChange,
-      changePercent: quote.regularMarketChangePercent,
+      price: quote.regularMarketPrice ?? null,
+      change: quote.regularMarketChange ?? null,
+      changePercent: quote.regularMarketChangePercent ?? null,
       timestamp: Date.now(),
       note: 'Option price not found, returning underlying price',
     });
@@ -75,7 +80,9 @@ async function fetchOptionPrice(
     const optionSymbol = `${ticker}${shortYear}${month}${day}${optionTypeCode}${strikeFormatted}`;
     
     try {
-      const quote = await yahooFinance.quote(optionSymbol);
+      const quote = await yahooFinance.quote(optionSymbol) as {
+        regularMarketPrice?: number;
+      };
       if (quote && quote.regularMarketPrice) {
         return quote.regularMarketPrice;
       }
@@ -86,12 +93,17 @@ async function fetchOptionPrice(
     // Try fetching option chain
     const chain = await yahooFinance.options(ticker, {
       date: new Date(expiry),
-    });
+    }) as {
+      options?: {
+        calls: Array<{ strike: number; lastPrice?: number }>;
+        puts: Array<{ strike: number; lastPrice?: number }>;
+      };
+    };
     
     if (chain && chain.options) {
       const options = type === 'call' ? chain.options.calls : chain.options.puts;
       const matchingOption = options.find(
-        (opt: { strike: number }) => Math.abs(opt.strike - strike) < 0.01
+        (opt) => Math.abs(opt.strike - strike) < 0.01
       );
       
       if (matchingOption && matchingOption.lastPrice) {

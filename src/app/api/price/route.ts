@@ -11,13 +11,18 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch quote for the underlying stock
-    const quote = await yahooFinance.quote(ticker.toUpperCase());
+    const quote = await yahooFinance.quote(ticker.toUpperCase()) as {
+      symbol: string;
+      regularMarketPrice?: number;
+      regularMarketChange?: number;
+      regularMarketChangePercent?: number;
+    };
     
     return NextResponse.json({
       symbol: quote.symbol,
-      price: quote.regularMarketPrice,
-      change: quote.regularMarketChange,
-      changePercent: quote.regularMarketChangePercent,
+      price: quote.regularMarketPrice ?? null,
+      change: quote.regularMarketChange ?? null,
+      changePercent: quote.regularMarketChangePercent ?? null,
       timestamp: Date.now(),
     });
   } catch (error) {

@@ -107,7 +107,7 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
               
               // P&L calculation using live market data when available
               const hasLivePrice = typeof position.currentPrice === 'number' && position.currentPrice > 0;
-              const currentPrice = hasLivePrice ? position.currentPrice : position.entryPrice;
+              const currentPrice = hasLivePrice ? position.currentPrice! : position.entryPrice;
               const priceDiff = hasLivePrice ? currentPrice - position.entryPrice : 0;
               // Buy: profit when price goes up
               // Sell: profit when price goes down
