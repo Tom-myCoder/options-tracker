@@ -81,6 +81,9 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                 P&L
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Broker
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Notes
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -103,17 +106,22 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
               const dte = calculateDaysToExpiry(position.expiry);
               
               // P&L calculation (will use live price when available)
-              // For now assume current price = entry price (0 P&L)
-              const currentPrice = position.currentPrice || position.entryPrice;
-              const priceDiff = currentPrice - position.entryPrice;
-              // Buy: profit when price goes up
-              // Sell: profit when price goes down
-              const pnl = isBuy 
-                ? priceDiff * position.quantity * 100
-                : -priceDiff * position.quantity * 100;
-              const pnlPercent = position.entryPrice > 0 
-                ? (isBuy ? (priceDiff / position.entryPrice) : (-priceDiff / position.entryPrice)) * 100
-                : 0;
+              // If no currentPrice is present (we'll pull it from Yahoo later), leave current blank and P&L = 0
+              const currentPrice = (typeof position.currentPrice !== 'undefined') ? position.currentPrice : null;
+              let priceDiff = 0;
+              let pnl = 0;
+              let pnlPercent = 0;
+              if (currentPrice !== null) {
+                priceDiff = currentPrice - position.entryPrice;
+                // Buy: profit when price goes up
+                // Sell: profit when price goes down
+                pnl = isBuy
+                  ? priceDiff * position.quantity * 100
+                  : -priceDiff * position.quantity * 100;
+                pnlPercent = position.entryPrice > 0
+                  ? (isBuy ? (priceDiff / position.entryPrice) : (-priceDiff / position.entryPrice)) * 100
+                  : 0;
+              }
               
               return (
                 <tr key={position.id} className="hover:bg-gray-50">
@@ -182,6 +190,9 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                     <span className="text-xs text-gray-500 ml-1">
                       ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%)
                     </span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    {position.broker || '-'}
                   </td>
                   <td className="px-4 py-4 text-gray-600 max-w-xs truncate">
                     {position.notes || '-'}

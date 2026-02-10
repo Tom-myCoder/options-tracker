@@ -17,9 +17,11 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
     expiry: '',
     quantity: '',
     entryPrice: '',
-    currentPrice: '',
+    broker: '',
     notes: '',
   });
+
+  const [formKey, setFormKey] = useState(0); // used to remount the form to avoid stubborn browser autofill
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,15 +35,16 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       expiry: formData.expiry,
       quantity: parseInt(formData.quantity),
       entryPrice: parseFloat(formData.entryPrice),
-      currentPrice: formData.currentPrice ? parseFloat(formData.currentPrice) : undefined,
+      // currentPrice will be populated later from market data (Yahoo) — leave undefined for now
       entryDate: new Date().toISOString().split('T')[0],
       notes: formData.notes,
+      broker: formData.broker?.trim() || undefined,
     };
 
+    // Save first
     savePosition(position);
-    onAdd();
-    
-    // Reset form
+
+    // Reset form immediately so fields clear and remount the form to avoid autofill
     setFormData({
       ticker: '',
       optionType: 'call',
@@ -50,14 +53,20 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       expiry: '',
       quantity: '',
       entryPrice: '',
-      currentPrice: '',
+      broker: '',
       notes: '',
     });
+
+    // Remount form (keeps browser autofill from re-populating old values)
+    setFormKey(k => k + 1);
+
+    // Notify parent to refresh
+    onAdd();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 className="text-xl font-semibold mb-4">Add New Position</h2>
+    <form key={formKey} onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6" autoComplete="off">
+      <h2 className="text-xl font-bold text-black mb-4">Add New Position</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
@@ -161,14 +170,14 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
 
         <div>
           <label className="block text-sm font-bold text-black mb-1">
-            Current Market Price ($) <span className="text-xs font-normal text-gray-600">(optional)</span>
+            Broker (optional)
           </label>
           <input
-            type="number"
-            step="0.01"
-            placeholder="5.50"
-            value={formData.currentPrice}
-            onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
+            type="text"
+            placeholder="e.g., TD, Robinhood"
+            autoComplete="off"
+            value={formData.broker}
+            onChange={(e) => setFormData({ ...formData, broker: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>

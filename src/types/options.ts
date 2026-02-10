@@ -10,4 +10,5 @@ export interface OptionPosition {
   currentPrice?: number;
   entryDate: string;
   notes?: string;
+  broker?: string;
 }

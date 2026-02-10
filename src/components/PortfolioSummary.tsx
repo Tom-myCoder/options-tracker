@@ -30,6 +30,15 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     // For MVP, P&L is 0 until we add live prices
     const totalPnL = 0;
 
+    // Brokers summary (unique non-empty brokers and counts)
+    const brokerCounts: Record<string, number> = {};
+    positions.forEach(p => {
+      if (p.broker && p.broker.trim() !== '') {
+        const key = p.broker.trim();
+        brokerCounts[key] = (brokerCounts[key] || 0) + 1;
+      }
+    });
+
     return {
       totalPositions,
       totalDebits,
@@ -37,10 +46,15 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
       netCashFlow,
       totalExposure,
       totalPnL,
+      brokerCounts,
     };
   };
 
   const summary = calculateSummary();
+
+  const brokerList = summary.brokerCounts && Object.keys(summary.brokerCounts).length > 0
+    ? Object.entries(summary.brokerCounts).map(([b,c]) => `${b} (${c})`).join(', ')
+    : '-';
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -50,7 +64,7 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
       <div className="bg-white rounded-lg shadow-md p-4">
         <p className="text-sm text-gray-600 mb-1">Total Positions</p>
         <p className="text-2xl font-bold text-gray-900">{summary.totalPositions}</p>
@@ -79,6 +93,11 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
       <div className="bg-white rounded-lg shadow-md p-4">
         <p className="text-sm text-gray-600 mb-1">Total Exposure</p>
         <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalExposure)}</p>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <p className="text-sm text-gray-600 mb-1">Brokers</p>
+        <p className="text-sm font-medium text-gray-900">{brokerList}</p>
       </div>
     </div>
   );
