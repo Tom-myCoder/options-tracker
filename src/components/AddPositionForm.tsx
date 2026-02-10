@@ -23,6 +23,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
 
   const [formKey, setFormKey] = useState(0); // used to remount the form to avoid stubborn browser autofill
 
+  // Generate unique field names that change with each form remount to defeat browser autofill
+  const fieldName = (base: string) => `${base}_${formKey}`;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -76,7 +79,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <input
             type="text"
             required
+            name={fieldName('ticker')}
             placeholder="NVDA"
+            autoComplete="new-password"
             value={formData.ticker}
             onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
@@ -88,7 +93,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             Option Type
           </label>
           <select
+            name={fieldName('optionType')}
             value={formData.optionType}
+            autoComplete="off"
             onChange={(e) => setFormData({ ...formData, optionType: e.target.value as 'call' | 'put' })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           >
@@ -102,7 +109,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             Side
           </label>
           <select
+            name={fieldName('side')}
             value={formData.side}
+            autoComplete="off"
             onChange={(e) => setFormData({ ...formData, side: e.target.value as 'buy' | 'sell' })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           >
@@ -119,7 +128,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             type="number"
             step="0.01"
             required
+            name={fieldName('strike')}
             placeholder="120.00"
+            autoComplete="new-password"
             value={formData.strike}
             onChange={(e) => setFormData({ ...formData, strike: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
@@ -133,6 +144,8 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <input
             type="date"
             required
+            name={fieldName('expiry')}
+            autoComplete="off"
             value={formData.expiry}
             onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
@@ -146,7 +159,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <input
             type="number"
             required
+            name={fieldName('quantity')}
             placeholder="1"
+            autoComplete="new-password"
             value={formData.quantity}
             onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
@@ -161,7 +176,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             type="number"
             step="0.01"
             required
+            name={fieldName('entryPrice')}
             placeholder="5.00"
+            autoComplete="new-password"
             value={formData.entryPrice}
             onChange={(e) => setFormData({ ...formData, entryPrice: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
@@ -174,8 +191,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           </label>
           <input
             type="text"
+            name={fieldName('broker')}
             placeholder="e.g., TD, Robinhood"
-            autoComplete="off"
+            autoComplete="new-password"
             value={formData.broker}
             onChange={(e) => setFormData({ ...formData, broker: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
@@ -188,7 +206,9 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           Notes (optional)
         </label>
         <textarea
+          name={fieldName('notes')}
           placeholder="Strategy, thesis, stop loss, etc."
+          autoComplete="new-password"
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"

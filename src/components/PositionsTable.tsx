@@ -41,7 +41,7 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-      <table className="w-full min-w-[1200px] table-auto">
+      <table className="w-full xl:min-w-[1400px] 2xl:min-w-full table-auto">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
