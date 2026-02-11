@@ -13,6 +13,11 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [resetCounter, setResetCounter] = useState(0);
 
+  const [expiryOptions, setExpiryOptions] = useState<string[]>([]);
+  const [loadingExpiries, setLoadingExpiries] = useState(false);
+  const [tickerPreview, setTickerPreview] = useState('');
+  const [expiryMode, setExpiryMode] = useState<'select' | 'custom'>('select');
+
   const resetForm = useCallback(() => {
     if (formRef.current) {
       // Native form reset
@@ -44,13 +49,16 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
     const formData = new FormData(form);
     const used = suffix; // capture current suffix so we read the correct names
     
+    // if expiryMode is 'select', read expiry from select value; if custom, date input provides expiry
+    const expiryValue = String(formData.get(`expiry_${used}`) || '');
+
     const position: OptionPosition = {
       id: generateId(),
       ticker: String(formData.get(`ticker_${used}`) || '').toUpperCase(),
       optionType: String(formData.get(`optionType_${used}`) || 'call') as 'call' | 'put',
       side: String(formData.get(`side_${used}`) || 'buy') as 'buy' | 'sell',
       strike: parseFloat(String(formData.get(`strike_${used}`) || '0')),
-      expiry: String(formData.get(`expiry_${used}`) || ''),
+      expiry: expiryValue,
       quantity: parseInt(String(formData.get(`quantity_${used}`) || '0')),
       entryPrice: parseFloat(String(formData.get(`entryPrice_${used}`) || '0')),
       entryDate: new Date().toISOString().split('T')[0],
@@ -196,16 +204,52 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <label className="block text-sm font-bold text-black mb-1">
             Expiry Date
           </label>
-          <input
-            key={`expiry-${suffix}`}
-            type="date"
-            name={`expiry_${suffix}`}
-            required
-            autoComplete="off"
-            data-lpignore="true"
-            data-1pignore="true"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
-          />
+          {loadingExpiries ? (
+            <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-500">Loading…</div>
+          ) : expiryOptions && expiryOptions.length > 0 ? (
+            <>
+              <select
+                key={`expiry-${suffix}`}
+                name={`expiry_${suffix}`}
+                defaultValue={expiryOptions[0]}
+                autoComplete="off"
+                data-lpignore="true"
+                data-1pignore="true"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setExpiryMode('custom');
+                  } else {
+                    setExpiryMode('select');
+                  }
+                }}
+              >
+                {expiryOptions.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+                <option value="__custom__">Custom date…</option>
+              </select>
+              {expiryMode === 'custom' && (
+                <input
+                  type="date"
+                  key={`expiry-custom-${suffix}`}
+                  name={`expiry_${suffix}`}
+                  className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
+                />
+              )}
+            </>
+          ) : (
+            <input
+              key={`expiry-${suffix}`}
+              type="date"
+              name={`expiry_${suffix}`}
+              required
+              autoComplete="off"
+              data-lpignore="true"
+              data-1pignore="true"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
+            />
+          )}
         </div>
 
         <div>
@@ -283,13 +327,30 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="mt-4 w-full md:w-auto px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-      >
-        {isSubmitting ? 'Adding...' : 'Add Position'}
-      </button>
+      <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mt-4">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+        >
+          {isSubmitting ? 'Adding...' : 'Add Position'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            resetForm();
+            setResetCounter(c => c + 1);
+            // focus the first input after clearing
+            setTimeout(() => {
+              try { formRef.current?.querySelector('input[name^="ticker_"]')?.focus(); } catch (e) {}
+            }, 50);
+          }}
+          className="mt-3 md:mt-0 w-full md:w-auto px-6 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
+        >
+          Clear fields
+        </button>
+      </div>
     </form>
   );
 }

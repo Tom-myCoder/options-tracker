@@ -1,6 +1,7 @@
 'use client';
 
 import { OptionPosition } from '@/types/options';
+import { exportPositionsCSV, importPositionsCSV, exportPositionsJSON, importPositionsJSON } from '@/lib/storage';
 
 interface PortfolioSummaryProps {
   positions: OptionPosition[];
@@ -63,42 +64,104 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     }).format(value);
   };
 
+  const handleExportCSV = () => {
+    const csv = exportPositionsCSV();
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'options-positions.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportJSON = () => {
+    const json = exportPositionsJSON();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'options-positions.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = async (file: File | null) => {
+    if (!file) return;
+    const text = await file.text();
+    const isCSV = file.name.toLowerCase().endsWith('.csv');
+    const isJSON = file.name.toLowerCase().endsWith('.json');
+
+    const ok = window.confirm('This will replace your current positions in localStorage. Continue?');
+    if (!ok) return;
+
+    try {
+      if (isCSV) {
+        importPositionsCSV(text);
+      } else if (isJSON) {
+        importPositionsJSON(text);
+      } else {
+        alert('Unsupported file type. Please upload .csv or .json');
+        return;
+      }
+      // Refresh the page so UI picks up new positions (simple and reliable for now)
+      window.location.reload();
+    } catch (e) {
+      alert('Failed to import file');
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Total Positions</p>
-        <p className="text-2xl font-bold text-gray-900">{summary.totalPositions}</p>
+    <>
+      <div className="flex items-center justify-end space-x-2 mb-4">
+        <button onClick={handleExportCSV} className="px-3 py-1 bg-gray-100 rounded-md text-sm">Export CSV</button>
+        <button onClick={handleExportJSON} className="px-3 py-1 bg-gray-100 rounded-md text-sm">Export JSON</button>
+        <label className="px-3 py-1 bg-gray-100 rounded-md text-sm cursor-pointer">
+          Import File
+          <input type="file" accept=".csv,.json" onChange={(e) => handleImportFile(e.target.files ? e.target.files[0] : null)} style={{ display: 'none' }} />
+        </label>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Total Debits (Buys)</p>
-        <p className="text-2xl font-bold text-red-600">-{formatCurrency(summary.totalDebits)}</p>
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Total Positions</p>
+          <p className="text-2xl font-bold text-gray-900">{summary.totalPositions}</p>
+        </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Total Credits (Sells)</p>
-        <p className="text-2xl font-bold text-green-600">+{formatCurrency(summary.totalCredits)}</p>
-      </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Total Debits (Buys)</p>
+          <p className="text-2xl font-bold text-red-600">-{formatCurrency(summary.totalDebits)}</p>
+        </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Net Cash Flow</p>
-        <p className={`text-2xl font-bold ${summary.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-          {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
-        </p>
-        <p className="text-xs text-gray-500 mt-1">
-          {summary.netCashFlow >= 0 ? 'Net Credit' : 'Net Debit'}
-        </p>
-      </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Total Credits (Sells)</p>
+          <p className="text-2xl font-bold text-green-600">+{formatCurrency(summary.totalCredits)}</p>
+        </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Total Exposure</p>
-        <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalExposure)}</p>
-      </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Net Cash Flow</p>
+          <p className={`text-2xl font-bold ${summary.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {summary.netCashFlow >= 0 ? 'Net Credit' : 'Net Debit'}
+          </p>
+        </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <p className="text-sm text-gray-600 mb-1">Brokers</p>
-        <p className="text-sm font-medium text-gray-900">{brokerList}</p>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Total Exposure</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalExposure)}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Brokers</p>
+          <p className="text-sm font-medium text-gray-900">{brokerList}</p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

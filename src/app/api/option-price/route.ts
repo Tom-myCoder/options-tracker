@@ -15,8 +15,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`[API] Request: ${ticker} ${optionType} $${strike} ${expiry}`);
-    
     // If we have all option details, try to find specific option price
     if (expiry && strike && optionType) {
       const optionPrice = await fetchOptionPrice(
@@ -25,8 +23,6 @@ export async function GET(request: NextRequest) {
         parseFloat(strike),
         optionType as 'call' | 'put'
       );
-      
-      console.log(`[API] Result: ${optionPrice !== null ? `price=${optionPrice}` : 'not found'}`);
       
       if (optionPrice !== null) {
         return NextResponse.json({
@@ -72,8 +68,6 @@ async function fetchOptionPrice(
   type: 'call' | 'put'
 ): Promise<number | null> {
   try {
-    console.log(`[Yahoo] Fetching ${type} option for ${ticker} @ $${strike} exp ${expiry}`);
-    
     // Try fetching option chain first (more reliable)
     const chain = await yahooFinance.options(ticker, {
       date: new Date(expiry),
@@ -84,21 +78,13 @@ async function fetchOptionPrice(
       };
     };
     
-    console.log(`[Yahoo] Chain result:`, chain ? 'found' : 'not found', 'options:', chain?.options ? 'yes' : 'no');
-    
     if (chain && chain.options) {
       const optionsList = type === 'call' ? chain.options.calls : chain.options.puts;
-      console.log(`[Yahoo] ${type} options count:`, optionsList?.length || 0);
       
       if (Array.isArray(optionsList) && optionsList.length > 0) {
-        // Log first few strikes to debug
-        console.log(`[Yahoo] Available strikes:`, optionsList.slice(0, 5).map(o => o.strike));
-        
         const matchingOption = optionsList.find(
           (opt) => opt && typeof opt.strike === 'number' && Math.abs(opt.strike - strike) < 0.01
         );
-        
-        console.log(`[Yahoo] Matching option:`, matchingOption ? `strike=${matchingOption.strike}, lastPrice=${matchingOption.lastPrice}` : 'not found');
         
         if (matchingOption) {
           // Use lastPrice, or fallback to bid/ask midpoint
@@ -106,7 +92,6 @@ async function fetchOptionPrice(
             (matchingOption.bid && matchingOption.ask ? (matchingOption.bid + matchingOption.ask) / 2 : undefined);
           
           if (price && price > 0) {
-            console.log(`[Yahoo] Returning price: ${price}`);
             return price;
           }
         }
@@ -120,21 +105,17 @@ async function fetchOptionPrice(
     const strikeFormatted = Math.round(strike * 1000).toString().padStart(8, '0');
     const optionSymbol = `${ticker}${shortYear}${month}${day}${optionTypeCode}${strikeFormatted}`;
     
-    console.log(`[Yahoo] Trying option symbol: ${optionSymbol}`);
-    
     try {
       const quote = await yahooFinance.quote(optionSymbol) as {
         regularMarketPrice?: number;
       };
-      console.log(`[Yahoo] Symbol quote result:`, quote);
       if (quote && quote.regularMarketPrice && quote.regularMarketPrice > 0) {
         return quote.regularMarketPrice;
       }
     } catch (e) {
-      console.log(`[Yahoo] Symbol quote failed:`, e);
+      // swallow symbol-quote errors
     }
     
-    console.log(`[Yahoo] No price found for ${ticker} ${type} $${strike} ${expiry}`);
     return null;
   } catch (error) {
     console.error('[Yahoo] Error fetching option price:', error);
