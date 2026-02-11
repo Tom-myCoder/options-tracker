@@ -66,6 +66,28 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
 
     // Aggressive form reset
     resetForm();
+
+    // Extra step: force inputs to clear and disable autofill by toggling readonly + randomizing autocomplete
+    if (formRef.current) {
+      const inputs = formRef.current.querySelectorAll('input, textarea, select');
+      inputs.forEach((input) => {
+        try {
+          // randomize autocomplete name to prevent browser reuse
+          (input as HTMLInputElement).autocomplete = `off-${Math.random().toString(36).slice(2,8)}`;
+        } catch (e) {}
+        try {
+          (input as HTMLInputElement).readOnly = true;
+          (input as HTMLInputElement).value = '';
+          (input as HTMLInputElement).blur();
+        } catch (e) {}
+      });
+      // re-enable inputs shortly after so user can type again
+      setTimeout(() => {
+        inputs.forEach((input) => {
+          try { (input as HTMLInputElement).readOnly = false; } catch(e) {}
+        });
+      }, 300);
+    }
     
     // Force re-render with new counter
     setResetCounter(c => c + 1);
