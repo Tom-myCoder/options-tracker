@@ -50,19 +50,25 @@ export function useMarketData() {
       await Promise.all(
         positions.map(async (position) => {
           try {
-            const response = await fetch(
-              `/api/option-price?ticker=${position.ticker}&expiry=${position.expiry}&strike=${position.strike}&type=${position.optionType}`
-            );
+            const url = `/api/option-price?ticker=${position.ticker}&expiry=${position.expiry}&strike=${position.strike}&type=${position.optionType}`;
+            console.log(`[MarketData] Fetching: ${url}`);
+            const response = await fetch(url);
             if (response.ok) {
               const data = await response.json();
+              console.log(`[MarketData] Response for ${position.ticker}:`, data);
               if (data.optionPrice) {
                 // Store with a unique key for this specific option
                 const key = `${position.ticker}-${position.expiry}-${position.strike}-${position.optionType}`;
                 priceMap.set(key, data);
+                console.log(`[MarketData] Stored price ${data.optionPrice} for ${key}`);
+              } else {
+                console.log(`[MarketData] No optionPrice in response for ${position.ticker}`);
               }
+            } else {
+              console.log(`[MarketData] Response not OK: ${response.status}`);
             }
           } catch (err) {
-            // Silently fail for individual options
+            console.log(`[MarketData] Error fetching option:`, err);
           }
         })
       );
