@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { OptionPosition } from '@/types/options';
 import { deletePosition } from '@/lib/storage';
+import PositionDetailModal from './PositionDetailModal';
 
 interface PositionsTableProps {
   positions: OptionPosition[];
@@ -9,6 +11,8 @@ interface PositionsTableProps {
 }
 
 export default function PositionsTable({ positions, onDelete }: PositionsTableProps) {
+  const [selectedPosition, setSelectedPosition] = useState<OptionPosition | null>(null);
+  
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -40,181 +44,198 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-      <table className="w-full min-w-full table-auto">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ticker
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Side
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Strike
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Expiry
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                DTE
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Qty
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Entry
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Current
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cash Flow
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Exposure
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                P&L
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Broker
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Notes
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {positions.map((position) => {
-              const notional = position.entryPrice * position.quantity * 100;
-              const isBuy = position.side === 'buy';
-              // For display: buys show as negative (money out), sells show as positive (money in)
-              const cashFlow = isBuy ? -notional : notional;
-              
-              // Exposure only applies to Sell Put (obligation to buy stock at strike if assigned)
-              // For Buy Put, Sell Call, Buy Call - exposure is just the premium paid
-              const isSellPut = position.side === 'sell' && position.optionType === 'put';
-              const exposure = isSellPut ? position.strike * position.quantity * 100 : null;
-              
-              const dte = calculateDaysToExpiry(position.expiry);
-              
-              // P&L calculation using live market data when available
-              const hasLivePrice = typeof position.currentPrice === 'number' && position.currentPrice > 0;
-              const currentPrice = hasLivePrice ? position.currentPrice! : position.entryPrice;
-              const priceDiff = hasLivePrice ? currentPrice - position.entryPrice : 0;
-              // Buy: profit when price goes up
-              // Sell: profit when price goes down
-              const pnl = hasLivePrice
-                ? (isBuy ? priceDiff : -priceDiff) * position.quantity * 100
-                : 0;
-              const pnlPercent = hasLivePrice && position.entryPrice > 0
-                ? (isBuy ? (priceDiff / position.entryPrice) : (-priceDiff / position.entryPrice)) * 100
-                : 0;
-              
-              return (
-                <tr key={position.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {position.ticker}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      position.optionType === 'call' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+    <>
+      <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+        <table className="w-full min-w-full table-auto">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ticker
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Side
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Strike
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Expiry
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  DTE
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Qty
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Entry
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Current
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cash Flow
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Exposure
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  P&L
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Broker
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Notes
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {positions.map((position) => {
+                const notional = position.entryPrice * position.quantity * 100;
+                const isBuy = position.side === 'buy';
+                // For display: buys show as negative (money out), sells show as positive (money in)
+                const cashFlow = isBuy ? -notional : notional;
+                
+                // Exposure only applies to Sell Put (obligation to buy stock at strike if assigned)
+                // For Buy Put, Sell Call, Buy Call - exposure is just the premium paid
+                const isSellPut = position.side === 'sell' && position.optionType === 'put';
+                const exposure = isSellPut ? position.strike * position.quantity * 100 : null;
+                
+                const dte = calculateDaysToExpiry(position.expiry);
+                
+                // P&L calculation using live market data when available
+                const hasLivePrice = typeof position.currentPrice === 'number' && position.currentPrice > 0;
+                const currentPrice = hasLivePrice ? position.currentPrice! : position.entryPrice;
+                const priceDiff = hasLivePrice ? currentPrice - position.entryPrice : 0;
+                // Buy: profit when price goes up
+                // Sell: profit when price goes down
+                const pnl = hasLivePrice
+                  ? (isBuy ? priceDiff : -priceDiff) * position.quantity * 100
+                  : 0;
+                const pnlPercent = hasLivePrice && position.entryPrice > 0
+                  ? (isBuy ? (priceDiff / position.entryPrice) : (-priceDiff / position.entryPrice)) * 100
+                  : 0;
+                
+                return (
+                  <tr key={position.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
+                      {position.ticker}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        position.optionType === 'call' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {position.optionType.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        isBuy 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-orange-100 text-orange-800'
+                      }`}>
+                        {isBuy ? 'BUY' : 'SELL'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                      {formatCurrency(position.strike)}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                      {new Date(position.expiry).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`text-sm ${
+                        dte < 7 ? 'text-red-600 font-semibold' : 
+                        dte < 30 ? 'text-yellow-600' : 'text-gray-600'
+                      }`}>
+                        {dte}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                      {position.quantity}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                      {formatCurrency(position.entryPrice)}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                      {hasLivePrice ? (
+                        <>
+                          {formatCurrency(currentPrice)}
+                          <span className="text-xs text-green-600 ml-1">●</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className={`px-4 py-4 whitespace-nowrap font-medium ${
+                      cashFlow >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {position.optionType.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      isBuy 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-orange-100 text-orange-800'
+                      {cashFlow >= 0 ? '+' : ''}{formatCurrency(cashFlow)}
+                      <span className="text-xs text-gray-500 ml-1">
+                        ({isBuy ? 'debit' : 'credit'})
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
+                      {exposure !== null ? formatCurrency(exposure) : '-'}
+                    </td>
+                    <td className={`px-4 py-4 whitespace-nowrap font-medium ${
+                      !hasLivePrice ? 'text-gray-400' : pnl >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {isBuy ? 'BUY' : 'SELL'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                    {formatCurrency(position.strike)}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                    {new Date(position.expiry).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className={`text-sm ${
-                      dte < 7 ? 'text-red-600 font-semibold' : 
-                      dte < 30 ? 'text-yellow-600' : 'text-gray-600'
-                    }`}>
-                      {dte}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                    {position.quantity}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                    {formatCurrency(position.entryPrice)}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                    {hasLivePrice ? (
-                      <>
-                        {formatCurrency(currentPrice)}
-                        <span className="text-xs text-green-600 ml-1">●</span>
-                      </>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className={`px-4 py-4 whitespace-nowrap font-medium ${
-                    cashFlow >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {cashFlow >= 0 ? '+' : ''}{formatCurrency(cashFlow)}
-                    <span className="text-xs text-gray-500 ml-1">
-                      ({isBuy ? 'debit' : 'credit'})
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {exposure !== null ? formatCurrency(exposure) : '-'}
-                  </td>
-                  <td className={`px-4 py-4 whitespace-nowrap font-medium ${
-                    !hasLivePrice ? 'text-gray-400' : pnl >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {hasLivePrice ? (
-                      <>
-                        {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
-                        <span className="text-xs text-gray-500 ml-1">
-                          ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%)
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                    {position.broker || '-'}
-                  </td>
-                  <td className="px-4 py-4 text-gray-600 max-w-xs truncate">
-                    {position.notes || '-'}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleDelete(position.id)}
-                      className="text-red-600 hover:text-red-900 text-sm font-medium"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-    </div>
+                      {hasLivePrice ? (
+                        <>
+                          {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                          <span className="text-xs text-gray-500 ml-1">
+                            ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%)
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                      {position.broker || '-'}
+                    </td>
+                    <td className="px-4 py-4 text-gray-600 max-w-xs truncate">
+                      {position.notes || '-'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => setSelectedPosition(position)}
+                          className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                        >
+                          Details
+                        </button>
+                        <button
+                          onClick={() => handleDelete(position.id)}
+                          className="text-red-600 hover:text-red-900 text-sm font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+      </div>
+      
+      {selectedPosition && (
+        <PositionDetailModal
+          position={selectedPosition}
+          onClose={() => setSelectedPosition(null)}
+        />
+      )}
+    </>
   );
 }
