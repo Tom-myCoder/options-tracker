@@ -81,7 +81,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       inputs.forEach((input) => {
         try {
           // randomize autocomplete name to prevent browser reuse
-          (input as HTMLInputElement).autocomplete = `off-${Math.random().toString(36).slice(2,8)}`;
+          (input as HTMLInputElement).autocomplete = `off-${Math.random().toString(36).slice(2,8)}` as any;
         } catch (e) {}
         try {
           (input as HTMLInputElement).readOnly = true;
@@ -343,7 +343,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             setResetCounter(c => c + 1);
             // focus the first input after clearing
             setTimeout(() => {
-              try { formRef.current?.querySelector('input[name^="ticker_"]')?.focus(); } catch (e) {}
+              try { (formRef.current?.querySelector('input[name^="ticker_"]') as HTMLInputElement | null)?.focus(); } catch (e) {}
             }, 50);
           }}
           className="mt-3 md:mt-0 w-full md:w-auto px-6 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
