@@ -62,15 +62,51 @@ export const exportPositionsCSV = (): string => {
   return csv;
 };
 
+// Parse a single CSV line with quoted fields
+function parseCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let i = 0;
+  while (i < line.length) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+    if (!inQuotes && char === '"') {
+      inQuotes = true;
+      i++;
+    } else if (inQuotes && char === '"' && nextChar === '"') {
+      // Escaped quote
+      current += '"';
+      i += 2;
+    } else if (inQuotes && char === '"') {
+      // End of quoted field
+      inQuotes = false;
+      i++;
+    } else if (!inQuotes && char === ',') {
+      // End of field
+      fields.push(current);
+      current = '';
+      i++;
+    } else {
+      current += char;
+      i++;
+    }
+  }
+  fields.push(current); // Last field
+  return fields;
+}
+
 // Import CSV (overwrites stored positions) - simple parser, expects same header
 export const importPositionsCSV = (csvText: string): void => {
   if (typeof window === 'undefined') return;
-  const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l=>l.length>0);
+  const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   if (lines.length < 2) return;
-  const header = lines[0].split(',').map(h => h.replace(/\"/g,'').trim());
+  
+  // Parse header line
+  const header = parseCSVLine(lines[0]).map(h => h.trim());
+  
   const positions: OptionPosition[] = lines.slice(1).map(line => {
-    // naive CSV split, relies on our exported format
-    const cols = line.match(/"(.*?)"(,|$)/g)?.map(s => s.replace(/^"|"$/g,'').replace(/""/g,'"')) || [];
+    const cols = parseCSVLine(line);
     const get = (name: string) => {
       const idx = header.indexOf(name);
       return idx >= 0 && idx < cols.length ? cols[idx] : '';
