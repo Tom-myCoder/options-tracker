@@ -77,7 +77,7 @@ async function fetchOptionPrice(
     // Try fetching option chain first (more reliable)
     const chain = await yahooFinance.options(ticker, {
       date: new Date(expiry),
-    }) as {
+    }) as unknown as {
       options?: {
         calls: Array<{ strike: number; lastPrice?: number; bid?: number; ask?: number }>;
         puts: Array<{ strike: number; lastPrice?: number; bid?: number; ask?: number }>;
