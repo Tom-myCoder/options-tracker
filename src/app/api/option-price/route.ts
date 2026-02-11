@@ -103,13 +103,15 @@ async function fetchOptionPrice(
     };
     
     if (chain && chain.options) {
-      const options = type === 'call' ? chain.options.calls : chain.options.puts;
-      const matchingOption = options.find(
-        (opt) => Math.abs(opt.strike - strike) < 0.01
-      );
-      
-      if (matchingOption && matchingOption.lastPrice) {
-        return matchingOption.lastPrice;
+      const optionsList = type === 'call' ? chain.options.calls : chain.options.puts;
+      if (Array.isArray(optionsList)) {
+        const matchingOption = optionsList.find(
+          (opt) => opt && typeof opt.strike === 'number' && Math.abs(opt.strike - strike) < 0.01
+        );
+        
+        if (matchingOption && matchingOption.lastPrice) {
+          return matchingOption.lastPrice;
+        }
       }
     }
     

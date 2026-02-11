@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { OptionPosition } from '@/types/options';
 import { savePosition, generateId } from '@/lib/storage';
 
@@ -8,92 +8,70 @@ interface AddPositionFormProps {
   onAdd: () => void;
 }
 
+// Generate random string to defeat browser autofill
+const randomId = () => Math.random().toString(36).substring(2, 8);
+
 export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
-  const [formData, setFormData] = useState({
-    ticker: '',
-    optionType: 'call' as 'call' | 'put',
-    side: 'buy' as 'buy' | 'sell',
-    strike: '',
-    expiry: '',
-    quantity: '',
-    entryPrice: '',
-    broker: '',
-    notes: '',
-  });
-
   const [formKey, setFormKey] = useState(0);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate unique field names that change with each form remount
-  const fieldName = useCallback((base: string) => `${base}_${formKey}`, [formKey]);
+  // Generate unique names for this form instance
+  const formId = useCallback(() => randomId(), [formKey]);
 
-  const clearAllInputs = () => {
-    // Force clear DOM elements directly to defeat browser autofill
-    if (formRef.current) {
-      const inputs = formRef.current.querySelectorAll('input, select, textarea');
-      inputs.forEach((input) => {
-        const el = input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-        if (el.tagName === 'SELECT') {
-          (el as HTMLSelectElement).selectedIndex = 0;
-        } else {
-          (el as HTMLInputElement | HTMLTextAreaElement).value = '';
-        }
-      });
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     
     const position: OptionPosition = {
       id: generateId(),
-      ticker: formData.ticker.toUpperCase(),
-      optionType: formData.optionType,
-      side: formData.side,
-      strike: parseFloat(formData.strike),
-      expiry: formData.expiry,
-      quantity: parseInt(formData.quantity),
-      entryPrice: parseFloat(formData.entryPrice),
+      ticker: String(formData.get('ticker') || '').toUpperCase(),
+      optionType: String(formData.get('optionType') || 'call') as 'call' | 'put',
+      side: String(formData.get('side') || 'buy') as 'buy' | 'sell',
+      strike: parseFloat(String(formData.get('strike') || '0')),
+      expiry: String(formData.get('expiry') || ''),
+      quantity: parseInt(String(formData.get('quantity') || '0')),
+      entryPrice: parseFloat(String(formData.get('entryPrice') || '0')),
       entryDate: new Date().toISOString().split('T')[0],
-      notes: formData.notes,
-      broker: formData.broker?.trim() || undefined,
+      notes: String(formData.get('notes') || '').trim() || undefined,
+      broker: String(formData.get('broker') || '').trim() || undefined,
     };
 
     // Save position
     savePosition(position);
 
-    // Notify parent to refresh (do this before clearing so UI updates)
+    // Notify parent
     onAdd();
 
-    // Clear form state
-    setFormData({
-      ticker: '',
-      optionType: 'call',
-      side: 'buy',
-      strike: '',
-      expiry: '',
-      quantity: '',
-      entryPrice: '',
-      broker: '',
-      notes: '',
-    });
-
-    // Force clear DOM elements
-    clearAllInputs();
-
-    // Remount form with new key (after a short delay to ensure DOM updates)
+    // Completely remount the form to clear all browser state
     setTimeout(() => {
       setFormKey(k => k + 1);
-    }, 50);
+      setIsSubmitting(false);
+    }, 100);
+  };
+
+  // Unique field names for this form instance
+  const fields = {
+    ticker: `ticker_${formKey}`,
+    optionType: `optionType_${formKey}`,
+    side: `side_${formKey}`,
+    strike: `strike_${formKey}`,
+    expiry: `expiry_${formKey}`,
+    quantity: `quantity_${formKey}`,
+    entryPrice: `entryPrice_${formKey}`,
+    broker: `broker_${formKey}`,
+    notes: `notes_${formKey}`,
   };
 
   return (
     <form 
-      ref={formRef}
-      key={formKey} 
+      key={formKey}
       onSubmit={handleSubmit} 
-      className="bg-white rounded-lg shadow-md p-6 mb-6" 
+      className="bg-white rounded-lg shadow-md p-6 mb-6"
       autoComplete="off"
+      style={{ opacity: isSubmitting ? 0.5 : 1 }}
     >
       <h2 className="text-xl font-bold text-black mb-4">Add New Position</h2>
       
@@ -104,14 +82,15 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           </label>
           <input
             type="text"
+            name="ticker"
             required
-            name={fieldName('ticker')}
             placeholder="NVDA"
             autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="characters"
+            spellCheck="false"
             data-lpignore="true"
             data-form-type="other"
-            value={formData.ticker}
-            onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
@@ -121,11 +100,10 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             Option Type
           </label>
           <select
-            name={fieldName('optionType')}
-            value={formData.optionType}
+            name="optionType"
+            defaultValue="call"
             autoComplete="off"
             data-lpignore="true"
-            onChange={(e) => setFormData({ ...formData, optionType: e.target.value as 'call' | 'put' })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           >
             <option value="call">Call</option>
@@ -138,11 +116,10 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             Side
           </label>
           <select
-            name={fieldName('side')}
-            value={formData.side}
+            name="side"
+            defaultValue="buy"
             autoComplete="off"
             data-lpignore="true"
-            onChange={(e) => setFormData({ ...formData, side: e.target.value as 'buy' | 'sell' })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           >
             <option value="buy">Buy (Long/Debit)</option>
@@ -155,16 +132,15 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             Strike Price ($)
           </label>
           <input
-            type="number"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]*\.?[0-9]*"
+            name="strike"
             required
-            name={fieldName('strike')}
             placeholder="120.00"
             autoComplete="off"
             data-lpignore="true"
             data-form-type="other"
-            value={formData.strike}
-            onChange={(e) => setFormData({ ...formData, strike: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
@@ -175,12 +151,10 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           </label>
           <input
             type="date"
+            name="expiry"
             required
-            name={fieldName('expiry')}
             autoComplete="off"
             data-lpignore="true"
-            value={formData.expiry}
-            onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
           />
         </div>
@@ -190,15 +164,15 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             Quantity (Contracts)
           </label>
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            name="quantity"
             required
-            name={fieldName('quantity')}
             placeholder="1"
             autoComplete="off"
             data-lpignore="true"
             data-form-type="other"
-            value={formData.quantity}
-            onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
@@ -208,16 +182,15 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             Entry Price per Contract ($)
           </label>
           <input
-            type="number"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]*\.?[0-9]*"
+            name="entryPrice"
             required
-            name={fieldName('entryPrice')}
             placeholder="5.00"
             autoComplete="off"
             data-lpignore="true"
             data-form-type="other"
-            value={formData.entryPrice}
-            onChange={(e) => setFormData({ ...formData, entryPrice: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
@@ -228,13 +201,11 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           </label>
           <input
             type="text"
-            name={fieldName('broker')}
+            name="broker"
             placeholder="e.g., TD, Robinhood"
             autoComplete="off"
             data-lpignore="true"
             data-form-type="other"
-            value={formData.broker}
-            onChange={(e) => setFormData({ ...formData, broker: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           />
         </div>
@@ -245,13 +216,11 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           Notes (optional)
         </label>
         <textarea
-          name={fieldName('notes')}
+          name="notes"
           placeholder="Strategy, thesis, stop loss, etc."
           autoComplete="off"
           data-lpignore="true"
           data-form-type="other"
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-700 font-medium"
           rows={2}
         />
@@ -259,9 +228,10 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
 
       <button
         type="submit"
-        className="mt-4 w-full md:w-auto px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={isSubmitting}
+        className="mt-4 w-full md:w-auto px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
       >
-        Add Position
+        {isSubmitting ? 'Adding...' : 'Add Position'}
       </button>
     </form>
   );
