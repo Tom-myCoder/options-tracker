@@ -42,19 +42,20 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+    const used = suffix; // capture current suffix so we read the correct names
     
     const position: OptionPosition = {
       id: generateId(),
-      ticker: String(formData.get('ticker') || '').toUpperCase(),
-      optionType: String(formData.get('optionType') || 'call') as 'call' | 'put',
-      side: String(formData.get('side') || 'buy') as 'buy' | 'sell',
-      strike: parseFloat(String(formData.get('strike') || '0')),
-      expiry: String(formData.get('expiry') || ''),
-      quantity: parseInt(String(formData.get('quantity') || '0')),
-      entryPrice: parseFloat(String(formData.get('entryPrice') || '0')),
+      ticker: String(formData.get(`ticker_${used}`) || '').toUpperCase(),
+      optionType: String(formData.get(`optionType_${used}`) || 'call') as 'call' | 'put',
+      side: String(formData.get(`side_${used}`) || 'buy') as 'buy' | 'sell',
+      strike: parseFloat(String(formData.get(`strike_${used}`) || '0')),
+      expiry: String(formData.get(`expiry_${used}`) || ''),
+      quantity: parseInt(String(formData.get(`quantity_${used}`) || '0')),
+      entryPrice: parseFloat(String(formData.get(`entryPrice_${used}`) || '0')),
       entryDate: new Date().toISOString().split('T')[0],
-      notes: String(formData.get('notes') || '').trim() || undefined,
-      broker: String(formData.get('broker') || '').trim() || undefined,
+      notes: String(formData.get(`notes_${used}`) || '').trim() || undefined,
+      broker: String(formData.get(`broker_${used}`) || '').trim() || undefined,
     };
 
     // Save position
@@ -83,6 +84,12 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       autoComplete="off"
       style={{ opacity: isSubmitting ? 0.7 : 1 }}
     >
+      {/* Hidden dummy inputs to capture browser autofill and protect the real fields */}
+      <div style={{ position: 'absolute', left: '-10000px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden' }} aria-hidden>
+        <input name="username" autoComplete="username" />
+        <input name="password" autoComplete="current-password" />
+      </div>
+
       <h2 className="text-xl font-bold text-black mb-4">Add New Position</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -93,7 +100,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <input
             key={`ticker-${suffix}`}
             type="text"
-            name="ticker"
+            name={`ticker_${suffix}`}
             required
             placeholder="NVDA"
             autoComplete="off"
@@ -113,7 +120,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           </label>
           <select
             key={`optionType-${suffix}`}
-            name="optionType"
+            name={`optionType_${suffix}`}
             defaultValue="call"
             autoComplete="off"
             data-lpignore="true"
@@ -131,7 +138,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           </label>
           <select
             key={`side-${suffix}`}
-            name="side"
+            name={`side_${suffix}`}
             defaultValue="buy"
             autoComplete="off"
             data-lpignore="true"
@@ -152,7 +159,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             type="text"
             inputMode="decimal"
             pattern="[0-9]*\.?[0-9]*"
-            name="strike"
+            name={`strike_${suffix}`}
             required
             placeholder="120.00"
             autoComplete="off"
@@ -170,7 +177,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <input
             key={`expiry-${suffix}`}
             type="date"
-            name="expiry"
+            name={`expiry_${suffix}`}
             required
             autoComplete="off"
             data-lpignore="true"
@@ -188,7 +195,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            name="quantity"
+            name={`quantity_${suffix}`}
             required
             placeholder="1"
             autoComplete="off"
@@ -208,7 +215,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
             type="text"
             inputMode="decimal"
             pattern="[0-9]*\.?[0-9]*"
-            name="entryPrice"
+            name={`entryPrice_${suffix}`}
             required
             placeholder="5.00"
             autoComplete="off"
@@ -226,7 +233,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           <input
             key={`broker-${suffix}`}
             type="text"
-            name="broker"
+            name={`broker_${suffix}`}
             placeholder="e.g., TD, Robinhood"
             autoComplete="off"
             data-lpignore="true"
@@ -243,7 +250,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
         </label>
         <textarea
           key={`notes-${suffix}`}
-          name="notes"
+          name={`notes_${suffix}`}
           placeholder="Strategy, thesis, stop loss, etc."
           autoComplete="off"
           data-lpignore="true"
