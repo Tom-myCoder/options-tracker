@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AddPositionForm from '@/components/AddPositionForm';
 import PositionsTable from '@/components/PositionsTable';
 import PortfolioSummary from '@/components/PortfolioSummary';
@@ -8,12 +8,20 @@ import { OptionPosition } from '@/types/options';
 import { getPositions } from '@/lib/storage';
 import { useMarketData } from '@/hooks/useMarketData';
 
+// Auto-refresh interval in milliseconds (15 minutes)
+const AUTO_REFRESH_INTERVAL = 15 * 60 * 1000;
+
 export default function Home() {
   const [positions, setPositions] = useState<OptionPosition[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingPosition, setEditingPosition] = useState<OptionPosition | null>(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [nextRefreshIn, setNextRefreshIn] = useState(AUTO_REFRESH_INTERVAL);
   const { fetchPrices, refreshPrices, isLoading, lastUpdated, error } = useMarketData();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Initial load
   useEffect(() => {
     const loadedPositions = getPositions();
     setPositions(loadedPositions);
@@ -31,6 +39,45 @@ export default function Home() {
     setPositions(getPositions());
   }, [refreshKey]);
 
+  // Auto-refresh setup
+  useEffect(() => {
+    // Clear existing intervals
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+
+    if (autoRefreshEnabled && positions.length > 0) {
+      // Set up auto-refresh interval
+      intervalRef.current = setInterval(() => {
+        handlePriceRefresh();
+        setNextRefreshIn(AUTO_REFRESH_INTERVAL);
+      }, AUTO_REFRESH_INTERVAL);
+
+      // Set up countdown timer
+      countdownRef.current = setInterval(() => {
+        setNextRefreshIn(prev => {
+          if (prev <= 1000) {
+            return AUTO_REFRESH_INTERVAL;
+          }
+          return prev - 1000;
+        });
+      }, 1000);
+    }
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, [autoRefreshEnabled, positions.length]);
+
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
     setEditingPosition(null);
@@ -39,6 +86,7 @@ export default function Home() {
   const handlePriceRefresh = async () => {
     const updated = await refreshPrices();
     setPositions(updated);
+    setNextRefreshIn(AUTO_REFRESH_INTERVAL);
   };
 
   const handleEdit = (position: OptionPosition) => {
@@ -49,6 +97,13 @@ export default function Home() {
 
   const handleCancelEdit = () => {
     setEditingPosition(null);
+  };
+
+  // Format countdown time
+  const formatCountdown = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -62,9 +117,32 @@ export default function Home() {
               <p className="text-sm text-gray-500">Track your options portfolio</p>
             </div>
             <div className="flex items-center gap-3">
+              {/* Auto-refresh indicator */}
+              {positions.length > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded ${
+                      autoRefreshEnabled 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                    title={autoRefreshEnabled ? 'Click to pause auto-refresh' : 'Click to enable auto-refresh'}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${autoRefreshEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                    {autoRefreshEnabled ? 'Auto' : 'Paused'}
+                  </button>
+                  {autoRefreshEnabled && !isLoading && (
+                    <span className="text-gray-400">
+                      Next: {formatCountdown(nextRefreshIn)}
+                    </span>
+                  )}
+                </div>
+              )}
+              
               {lastUpdated && (
                 <span className="text-xs text-gray-500">
-                  Prices updated: {lastUpdated.toLocaleTimeString()}
+                  Updated: {lastUpdated.toLocaleTimeString()}
                 </span>
               )}
               {error && (
@@ -123,6 +201,11 @@ export default function Home() {
         <footer className="mt-12 text-center text-sm text-gray-500">
           <p>Options Tracker v1.0 • Built with Next.js</p>
           <p className="mt-1">Data stored locally in your browser</p>
+          {positions.length > 0 && (
+            <p className="mt-1 text-xs text-gray-400">
+              Auto-refresh: {autoRefreshEnabled ? 'Enabled (every 15 min)' : 'Paused'}
+            </p>
+          )}
         </footer>
       </div>
     </main>

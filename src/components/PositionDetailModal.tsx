@@ -1,8 +1,7 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { OptionPosition } from '@/types/options';
-import { fetchAndStoreHistoricalPrices } from '@/lib/storage';
 import {
   LineChart,
   Line,
@@ -29,34 +28,7 @@ interface PayoffPoint {
 
 export default function PositionDetailModal({ position, onClose }: PositionDetailModalProps) {
   const [simulatedPrice, setSimulatedPrice] = useState<number | null>(null);
-  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [localPosition, setLocalPosition] = useState(position);
-  
-  const handleFetchHistory = useCallback(async () => {
-    if (!localPosition.purchaseDate) {
-      setHistoryError('No purchase date set for this position');
-      return;
-    }
-    
-    setIsFetchingHistory(true);
-    setHistoryError(null);
-    
-    try {
-      await fetchAndStoreHistoricalPrices(localPosition);
-      // Refresh the position data
-      const { getPositions } = await import('@/lib/storage');
-      const positions = getPositions();
-      const updated = positions.find(p => p.id === localPosition.id);
-      if (updated) {
-        setLocalPosition(updated);
-      }
-    } catch (err) {
-      setHistoryError('Failed to fetch historical prices. Note: Historical option data is estimated from underlying stock prices.');
-    } finally {
-      setIsFetchingHistory(false);
-    }
-  }, [localPosition]);
+  const [localPosition] = useState(position);
   
   const { payoffData, breakEven, maxProfit, maxLoss, currentUnderlyingPrice } = useMemo(() => {
     // Generate price range around strike (±50% of strike, minimum $10 range)
@@ -300,32 +272,19 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
             </div>
           )}
           
-          {/* Fetch Historical Prices Button */}
-          {localPosition.purchaseDate && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-900">Historical Price Data</p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    Fetch estimated prices from {new Date(localPosition.purchaseDate).toLocaleDateString()} to today
-                  </p>
-                </div>
-                <button
-                  onClick={handleFetchHistory}
-                  disabled={isFetchingHistory}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isFetchingHistory ? 'Fetching...' : 'Fetch History'}
-                </button>
-              </div>
-              {historyError && (
-                <p className="text-xs text-red-600 mt-2">{historyError}</p>
-              )}
+          {/* Price Tracking Info */}
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm font-medium text-blue-900">📈 Automatic Price Tracking</p>
+            <p className="text-xs text-blue-700 mt-1">
+              Prices are automatically fetched every 15 minutes while the app is open. 
+              History builds from when you add the position.
+            </p>
+            {localPosition.purchaseDate && (
               <p className="text-xs text-gray-500 mt-2">
-                Note: Historical option prices are estimated from underlying stock data.
+                Purchase date: {new Date(localPosition.purchaseDate).toLocaleDateString()}
               </p>
-            </div>
-          )}
+            )}
+          </div>
           
           {/* Historical Price Chart with Theta Projection */}
           <div className="mt-6 pt-6 border-t">
