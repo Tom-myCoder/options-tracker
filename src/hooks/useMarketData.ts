@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { OptionPosition } from '@/types/options';
-import { getPositions, updatePositions } from '@/lib/storage';
+import { getPositions, addPriceSnapshot } from '@/lib/storage';
 
 interface PriceData {
   symbol: string;
@@ -29,16 +29,15 @@ export function useMarketData() {
       // Get unique tickers
       const tickers = [...new Set(positions.map(p => p.ticker))];
       
-      // Fetch prices for each ticker
-      const priceMap = new Map<string, PriceData>();
-      
+      // Fetch underlying prices for each ticker
+      const underlyingMap = new Map<string, number>();
       await Promise.all(
         tickers.map(async (ticker) => {
           try {
             const response = await fetch(`/api/price?ticker=${ticker}`);
             if (response.ok) {
               const data = await response.json();
-              priceMap.set(ticker, data);
+              underlyingMap.set(ticker, data.price);
             }
           } catch (err) {
             console.error(`Failed to fetch price for ${ticker}:`, err);
@@ -46,7 +45,7 @@ export function useMarketData() {
         })
       );
       
-      // Also fetch option-specific prices for more accuracy
+      // Fetch option-specific prices and add snapshots
       await Promise.all(
         positions.map(async (position) => {
           try {
@@ -55,9 +54,9 @@ export function useMarketData() {
             if (response.ok) {
               const data = await response.json();
               if (data.optionPrice) {
-                // Store with a unique key for this specific option
-                const key = `${position.ticker}-${position.expiry}-${position.strike}-${position.optionType}`;
-                priceMap.set(key, data);
+                // Add price snapshot with underlying price if available
+                const underlyingPrice = underlyingMap.get(position.ticker);
+                addPriceSnapshot(position.id, data.optionPrice, underlyingPrice);
               }
             }
           } catch (err) {
@@ -66,24 +65,8 @@ export function useMarketData() {
         })
       );
       
-      // Update positions with fetched prices
-      const updatedPositions = positions.map(position => {
-        const optionKey = `${position.ticker}-${position.expiry}-${position.strike}-${position.optionType}`;
-        const optionData = priceMap.get(optionKey);
-        
-        if (optionData && optionData.optionPrice) {
-          return {
-            ...position,
-            currentPrice: optionData.optionPrice,
-            lastPriceUpdate: Date.now(),
-          };
-        }
-        
-        return position;
-      });
-      
-      // Save updated positions
-      updatePositions(updatedPositions);
+      // Reload positions with updated history
+      const updatedPositions = getPositions();
       setLastUpdated(new Date());
       
       return updatedPositions;

@@ -13,6 +13,7 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from 'recharts';
+import PositionPriceHistoryChart from './PositionPriceHistoryChart';
 
 interface PositionDetailModalProps {
   position: OptionPosition;
@@ -268,6 +269,11 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
               </p>
             </div>
           )}
+          
+          {/* Historical Price Chart with Theta Projection */}
+          <div className="mt-6 pt-6 border-t">
+            <PositionPriceHistoryChart position={position} />
+          </div>
         </div>
       </div>
     </div>

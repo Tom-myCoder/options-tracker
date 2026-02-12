@@ -1,3 +1,9 @@
+export interface PriceSnapshot {
+  timestamp: number;
+  price: number;
+  underlyingPrice?: number;
+}
+
 export interface OptionPosition {
   id: string;
   ticker: string;
@@ -12,4 +18,5 @@ export interface OptionPosition {
   notes?: string;
   broker?: string;
   lastPriceUpdate?: number; // timestamp of last price fetch
+  priceHistory?: PriceSnapshot[]; // Historical price snapshots
 }

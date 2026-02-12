@@ -39,6 +39,33 @@ export const updatePositions = (positions: OptionPosition[]): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
 };
 
+// Add a price snapshot to a position's history
+export const addPriceSnapshot = (id: string, price: number, underlyingPrice?: number): void => {
+  const positions = getPositions();
+  const index = positions.findIndex(p => p.id === id);
+  if (index === -1) return;
+  
+  const position = positions[index];
+  const snapshot = {
+    timestamp: Date.now(),
+    price,
+    underlyingPrice,
+  };
+  
+  const history = position.priceHistory || [];
+  // Keep last 90 days of history to avoid storage bloat
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const filteredHistory = history.filter(h => h.timestamp > cutoff);
+  filteredHistory.push(snapshot);
+  
+  position.priceHistory = filteredHistory;
+  position.currentPrice = price;
+  position.lastPriceUpdate = Date.now();
+  
+  positions[index] = position;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+};
+
 // Export positions as CSV (simple header-based)
 export const exportPositionsCSV = (): string => {
   const positions = getPositions();
