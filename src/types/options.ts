@@ -4,6 +4,9 @@ export interface PriceSnapshot {
   underlyingPrice?: number;
 }
 
+// Data format version for migration support
+export const DATA_VERSION = 1;
+
 export interface OptionPosition {
   id: string;
   ticker: string;
@@ -20,4 +23,5 @@ export interface OptionPosition {
   broker?: string;
   lastPriceUpdate?: number; // timestamp of last price fetch
   priceHistory?: PriceSnapshot[]; // Historical price snapshots
+  dataVersion?: number; // Version for backward compatibility
 }

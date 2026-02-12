@@ -1,16 +1,54 @@
-import { OptionPosition } from '@/types/options';
+import { OptionPosition, DATA_VERSION } from '@/types/options';
 
 const STORAGE_KEY = 'options-tracker-positions';
+
+// Migration function to handle old data formats
+function migratePosition(position: any): OptionPosition {
+  // Handle missing fields from older versions
+  const migrated: OptionPosition = {
+    id: position.id || generateId(),
+    ticker: position.ticker || '',
+    optionType: position.optionType || 'call',
+    side: position.side || 'buy',
+    strike: parseFloat(position.strike) || 0,
+    expiry: position.expiry || '',
+    quantity: parseInt(position.quantity) || 0,
+    entryPrice: parseFloat(position.entryPrice) || 0,
+    currentPrice: position.currentPrice ? parseFloat(position.currentPrice) : undefined,
+    entryDate: position.entryDate || new Date().toISOString().split('T')[0],
+    purchaseDate: position.purchaseDate || undefined,
+    notes: position.notes || undefined,
+    broker: position.broker || undefined,
+    lastPriceUpdate: position.lastPriceUpdate ? Number(position.lastPriceUpdate) : undefined,
+    priceHistory: Array.isArray(position.priceHistory) ? position.priceHistory : [],
+    dataVersion: DATA_VERSION,
+  };
+  
+  return migrated;
+}
 
 export const getPositions = (): OptionPosition[] => {
   if (typeof window === 'undefined') return [];
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+  if (!stored) return [];
+  
+  try {
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    
+    // Migrate any old data formats
+    return parsed.map(migratePosition);
+  } catch (e) {
+    console.error('Error parsing stored positions:', e);
+    return [];
+  }
 };
 
 export const savePosition = (position: OptionPosition): void => {
   const positions = getPositions();
-  positions.push(position);
+  // Ensure version is set
+  const positionWithVersion = { ...position, dataVersion: DATA_VERSION };
+  positions.push(positionWithVersion);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
 };
 
@@ -66,10 +104,11 @@ export const addPriceSnapshot = (id: string, price: number, underlyingPrice?: nu
   localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
 };
 
-// Export positions as CSV (simple header-based)
+// Export positions as CSV (simple header-based, backward compatible)
 export const exportPositionsCSV = (): string => {
   const positions = getPositions();
-  const header = ['id','ticker','optionType','side','strike','expiry','quantity','entryPrice','currentPrice','entryDate','purchaseDate','notes','broker','lastPriceUpdate'];
+  // Include dataVersion in CSV for future compatibility
+  const header = ['id','ticker','optionType','side','strike','expiry','quantity','entryPrice','currentPrice','entryDate','purchaseDate','notes','broker','lastPriceUpdate','dataVersion'];
   const rows = positions.map(p => [
     p.id,
     p.ticker,
@@ -84,7 +123,8 @@ export const exportPositionsCSV = (): string => {
     p.purchaseDate || '',
     p.notes ? p.notes.replace(/"/g,'""') : '',
     p.broker ? p.broker : '',
-    p.lastPriceUpdate ? String(p.lastPriceUpdate) : ''
+    p.lastPriceUpdate ? String(p.lastPriceUpdate) : '',
+    String(DATA_VERSION)
   ]);
   const csv = [header.join(','), ...rows.map(r => r.map(c=>`"${c}"`).join(','))].join('\n');
   return csv;
@@ -124,51 +164,123 @@ function parseCSVLine(line: string): string[] {
   return fields;
 }
 
-// Import CSV (overwrites stored positions) - simple parser, expects same header
+// Import CSV (overwrites stored positions) - backward compatible with missing columns
 export const importPositionsCSV = (csvText: string): void => {
   if (typeof window === 'undefined') return;
   const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   if (lines.length < 2) return;
   
   // Parse header line
-  const header = parseCSVLine(lines[0]).map(h => h.trim());
+  const header = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+  
+  // Helper to get value case-insensitively (handles old export formats)
+  const getValue = (cols: string[], names: string[]): string => {
+    for (const name of names) {
+      const idx = header.indexOf(name.toLowerCase());
+      if (idx >= 0 && idx < cols.length) {
+        return cols[idx];
+      }
+    }
+    return '';
+  };
   
   const positions: OptionPosition[] = lines.slice(1).map(line => {
     const cols = parseCSVLine(line);
-    const get = (name: string) => {
-      const idx = header.indexOf(name);
-      return idx >= 0 && idx < cols.length ? cols[idx] : '';
-    };
-    return {
-      id: get('id') || generateId(),
-      ticker: get('ticker') || '',
-      optionType: (get('optionType') as 'call' | 'put') || 'call',
-      side: (get('side') as 'buy' | 'sell') || 'buy',
-      strike: parseFloat(get('strike') || '0') || 0,
-      expiry: get('expiry') || '',
-      quantity: parseInt(get('quantity') || '0') || 0,
-      entryPrice: parseFloat(get('entryPrice') || '0') || 0,
-      currentPrice: get('currentPrice') ? parseFloat(get('currentPrice')) : undefined,
-      entryDate: get('entryDate') || new Date().toISOString().split('T')[0],
-      purchaseDate: get('purchaseDate') || undefined,
-      notes: get('notes') || undefined,
-      broker: get('broker') || undefined,
-      lastPriceUpdate: get('lastPriceUpdate') ? Number(get('lastPriceUpdate')) : undefined,
-    };
+    
+    // Support multiple header name variants for backward compatibility
+    const id = getValue(cols, ['id', 'ID']);
+    const ticker = getValue(cols, ['ticker', 'symbol', 'TICKER', 'SYMBOL']);
+    const optionType = getValue(cols, ['optiontype', 'optionType', 'type', 'OPTIONTYPE', 'TYPE']);
+    const side = getValue(cols, ['side', 'SIDE']);
+    const strike = getValue(cols, ['strike', 'STRIKE']);
+    const expiry = getValue(cols, ['expiry', 'expiration', 'EXPIRY', 'EXPIRATION', 'expiryDate']);
+    const quantity = getValue(cols, ['quantity', 'qty', 'QUANTITY', 'QTY']);
+    const entryPrice = getValue(cols, ['entryprice', 'entryPrice', 'price', 'ENTRYPRICE', 'PRICE']);
+    const currentPrice = getValue(cols, ['currentprice', 'currentPrice', 'CURRENT_PRICE']);
+    const entryDate = getValue(cols, ['entrydate', 'entryDate', 'ENTRYDATE', 'date']);
+    const purchaseDate = getValue(cols, ['purchasedate', 'purchaseDate', 'PURCHASEDATE', 'purchase_date']);
+    const notes = getValue(cols, ['notes', 'NOTES', 'note']);
+    const broker = getValue(cols, ['broker', 'BROKER']);
+    const lastPriceUpdate = getValue(cols, ['lastpriceupdate', 'lastPriceUpdate', 'LASTPRICEUPDATE']);
+    
+    return migratePosition({
+      id: id || generateId(),
+      ticker: ticker || '',
+      optionType: (optionType as 'call' | 'put') || 'call',
+      side: (side as 'buy' | 'sell') || 'buy',
+      strike: parseFloat(strike || '0') || 0,
+      expiry: expiry || '',
+      quantity: parseInt(quantity || '0') || 0,
+      entryPrice: parseFloat(entryPrice || '0') || 0,
+      currentPrice: currentPrice ? parseFloat(currentPrice) : undefined,
+      entryDate: entryDate || new Date().toISOString().split('T')[0],
+      purchaseDate: purchaseDate || undefined,
+      notes: notes || undefined,
+      broker: broker || undefined,
+      lastPriceUpdate: lastPriceUpdate ? Number(lastPriceUpdate) : undefined,
+      priceHistory: [], // CSV doesn't include price history
+    });
   });
+  
   localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
 };
 
 // Export/Import JSON for backup (includes full price history)
-export const exportPositionsJSON = (): string => JSON.stringify(getPositions(), null, 2);
-export const importPositionsJSON = (jsonText: string): void => {
+export const exportPositionsJSON = (): string => {
+  const positions = getPositions().map(p => ({ ...p, dataVersion: DATA_VERSION }));
+  return JSON.stringify(positions, null, 2);
+};
+
+export const importPositionsJSON = (jsonText: string): { success: boolean; count: number; errors: string[] } => {
+  const errors: string[] = [];
+  
   try {
     const data = JSON.parse(jsonText);
-    if (Array.isArray(data)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    
+    if (!Array.isArray(data)) {
+      errors.push('Invalid format: expected an array of positions');
+      return { success: false, count: 0, errors };
     }
+    
+    // Validate and migrate each position
+    const migratedPositions: OptionPosition[] = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      
+      // Basic validation
+      if (!item || typeof item !== 'object') {
+        errors.push(`Item ${i + 1}: Invalid position data`);
+        continue;
+      }
+      
+      // Check for required fields (ticker is minimum)
+      if (!item.ticker && !item.symbol) {
+        errors.push(`Item ${i + 1}: Missing ticker/symbol`);
+        continue;
+      }
+      
+      try {
+        const migrated = migratePosition(item);
+        migratedPositions.push(migrated);
+      } catch (e) {
+        errors.push(`Item ${i + 1}: Failed to migrate - ${e instanceof Error ? e.message : 'unknown error'}`);
+      }
+    }
+    
+    if (migratedPositions.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedPositions));
+    }
+    
+    return {
+      success: migratedPositions.length > 0,
+      count: migratedPositions.length,
+      errors: errors.length > 0 ? errors : [],
+    };
+    
   } catch (e) {
-    console.error('Invalid JSON');
+    errors.push('Failed to parse JSON: ' + (e instanceof Error ? e.message : 'unknown error'));
+    return { success: false, count: 0, errors };
   }
 };
 

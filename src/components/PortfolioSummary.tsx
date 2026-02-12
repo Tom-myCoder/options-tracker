@@ -115,16 +115,27 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     try {
       if (isCSV) {
         importPositionsCSV(text);
+        alert(`Successfully imported positions from CSV`);
+        window.location.reload();
       } else if (isJSON) {
-        importPositionsJSON(text);
+        const result = importPositionsJSON(text);
+        if (result.success) {
+          const msg = `Successfully imported ${result.count} position${result.count !== 1 ? 's' : ''}`;
+          if (result.errors.length > 0) {
+            alert(`${msg}\n\nWarnings:\n${result.errors.slice(0, 5).join('\n')}${result.errors.length > 5 ? '\n...and ' + (result.errors.length - 5) + ' more' : ''}`);
+          } else {
+            alert(msg);
+          }
+          window.location.reload();
+        } else {
+          alert(`Import failed:\n${result.errors.join('\n')}`);
+        }
       } else {
         alert('Unsupported file type. Please upload .csv or .json');
         return;
       }
-      // Refresh the page so UI picks up new positions (simple and reliable for now)
-      window.location.reload();
     } catch (e) {
-      alert('Failed to import file');
+      alert('Failed to import file: ' + (e instanceof Error ? e.message : 'Unknown error'));
     }
   };
 
