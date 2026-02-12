@@ -69,7 +69,7 @@ export const addPriceSnapshot = (id: string, price: number, underlyingPrice?: nu
 // Export positions as CSV (simple header-based)
 export const exportPositionsCSV = (): string => {
   const positions = getPositions();
-  const header = ['id','ticker','optionType','side','strike','expiry','quantity','entryPrice','currentPrice','entryDate','notes','broker','lastPriceUpdate'];
+  const header = ['id','ticker','optionType','side','strike','expiry','quantity','entryPrice','currentPrice','entryDate','purchaseDate','notes','broker','lastPriceUpdate'];
   const rows = positions.map(p => [
     p.id,
     p.ticker,
@@ -81,6 +81,7 @@ export const exportPositionsCSV = (): string => {
     String(p.entryPrice),
     p.currentPrice != null ? String(p.currentPrice) : '',
     p.entryDate,
+    p.purchaseDate || '',
     p.notes ? p.notes.replace(/"/g,'""') : '',
     p.broker ? p.broker : '',
     p.lastPriceUpdate ? String(p.lastPriceUpdate) : ''
@@ -149,6 +150,7 @@ export const importPositionsCSV = (csvText: string): void => {
       entryPrice: parseFloat(get('entryPrice') || '0') || 0,
       currentPrice: get('currentPrice') ? parseFloat(get('currentPrice')) : undefined,
       entryDate: get('entryDate') || new Date().toISOString().split('T')[0],
+      purchaseDate: get('purchaseDate') || undefined,
       notes: get('notes') || undefined,
       broker: get('broker') || undefined,
       lastPriceUpdate: get('lastPriceUpdate') ? Number(get('lastPriceUpdate')) : undefined,

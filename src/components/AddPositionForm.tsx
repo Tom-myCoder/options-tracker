@@ -2,28 +2,65 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { OptionPosition } from '@/types/options';
-import { savePosition, generateId } from '@/lib/storage';
+import { savePosition, updatePosition, generateId } from '@/lib/storage';
 
 interface AddPositionFormProps {
   onAdd: () => void;
+  editPosition?: OptionPosition | null;
+  onCancelEdit?: () => void;
 }
 
-export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
+export default function AddPositionForm({ onAdd, editPosition, onCancelEdit }: AddPositionFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [resetCounter, setResetCounter] = useState(0);
-
   const [expiryOptions, setExpiryOptions] = useState<string[]>([]);
   const [loadingExpiries, setLoadingExpiries] = useState(false);
-  const [tickerPreview, setTickerPreview] = useState('');
   const [expiryMode, setExpiryMode] = useState<'select' | 'custom'>('select');
+
+  const isEditing = !!editPosition;
+
+  // Reset form when switching between add/edit modes
+  useEffect(() => {
+    if (editPosition && formRef.current) {
+      const form = formRef.current;
+      const suffix = resetCounter;
+      
+      // Populate form with edit data
+      const tickerInput = form.querySelector(`input[name="ticker_${suffix}"]`) as HTMLInputElement;
+      const optionTypeSelect = form.querySelector(`select[name="optionType_${suffix}"]`) as HTMLSelectElement;
+      const sideSelect = form.querySelector(`select[name="side_${suffix}"]`) as HTMLSelectElement;
+      const strikeInput = form.querySelector(`input[name="strike_${suffix}"]`) as HTMLInputElement;
+      const expiryInput = form.querySelector(`input[name="expiry_${suffix}"]`) as HTMLInputElement;
+      const expirySelect = form.querySelector(`select[name="expiry_${suffix}"]`) as HTMLSelectElement;
+      const quantityInput = form.querySelector(`input[name="quantity_${suffix}"]`) as HTMLInputElement;
+      const entryPriceInput = form.querySelector(`input[name="entryPrice_${suffix}"]`) as HTMLInputElement;
+      const brokerInput = form.querySelector(`input[name="broker_${suffix}"]`) as HTMLInputElement;
+      const purchaseDateInput = form.querySelector(`input[name="purchaseDate_${suffix}"]`) as HTMLInputElement;
+      const notesTextarea = form.querySelector(`textarea[name="notes_${suffix}"]`) as HTMLTextAreaElement;
+
+      if (tickerInput) tickerInput.value = editPosition.ticker;
+      if (optionTypeSelect) optionTypeSelect.value = editPosition.optionType;
+      if (sideSelect) sideSelect.value = editPosition.side;
+      if (strikeInput) strikeInput.value = editPosition.strike.toString();
+      if (quantityInput) quantityInput.value = editPosition.quantity.toString();
+      if (entryPriceInput) entryPriceInput.value = editPosition.entryPrice.toString();
+      if (brokerInput) brokerInput.value = editPosition.broker || '';
+      if (purchaseDateInput) purchaseDateInput.value = editPosition.purchaseDate || '';
+      if (notesTextarea) notesTextarea.value = editPosition.notes || '';
+      
+      // Handle expiry
+      if (expirySelect) {
+        expirySelect.value = editPosition.expiry;
+      } else if (expiryInput) {
+        expiryInput.value = editPosition.expiry;
+      }
+    }
+  }, [editPosition, resetCounter]);
 
   const resetForm = useCallback(() => {
     if (formRef.current) {
-      // Native form reset
       formRef.current.reset();
-      
-      // Force clear all inputs manually
       const inputs = formRef.current.querySelectorAll('input, select, textarea');
       inputs.forEach((input) => {
         const el = input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -47,40 +84,57 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const used = suffix; // capture current suffix so we read the correct names
+    const used = resetCounter;
     
-    // if expiryMode is 'select', read expiry from select value; if custom, date input provides expiry
     const expiryValue = String(formData.get(`expiry_${used}`) || '');
+    const purchaseDateValue = String(formData.get(`purchaseDate_${used}`) || '').trim();
 
-    const position: OptionPosition = {
-      id: generateId(),
-      ticker: String(formData.get(`ticker_${used}`) || '').toUpperCase(),
-      optionType: String(formData.get(`optionType_${used}`) || 'call') as 'call' | 'put',
-      side: String(formData.get(`side_${used}`) || 'buy') as 'buy' | 'sell',
-      strike: parseFloat(String(formData.get(`strike_${used}`) || '0')),
-      expiry: expiryValue,
-      quantity: parseInt(String(formData.get(`quantity_${used}`) || '0')),
-      entryPrice: parseFloat(String(formData.get(`entryPrice_${used}`) || '0')),
-      entryDate: new Date().toISOString().split('T')[0],
-      notes: String(formData.get(`notes_${used}`) || '').trim() || undefined,
-      broker: String(formData.get(`broker_${used}`) || '').trim() || undefined,
-    };
+    if (isEditing && editPosition) {
+      // Update existing position
+      const updates: Partial<OptionPosition> = {
+        ticker: String(formData.get(`ticker_${used}`) || '').toUpperCase(),
+        optionType: String(formData.get(`optionType_${used}`) || 'call') as 'call' | 'put',
+        side: String(formData.get(`side_${used}`) || 'buy') as 'buy' | 'sell',
+        strike: parseFloat(String(formData.get(`strike_${used}`) || '0')),
+        expiry: expiryValue,
+        quantity: parseInt(String(formData.get(`quantity_${used}`) || '0')),
+        entryPrice: parseFloat(String(formData.get(`entryPrice_${used}`) || '0')),
+        purchaseDate: purchaseDateValue || undefined,
+        notes: String(formData.get(`notes_${used}`) || '').trim() || undefined,
+        broker: String(formData.get(`broker_${used}`) || '').trim() || undefined,
+      };
+      updatePosition(editPosition.id, updates);
+    } else {
+      // Create new position
+      const position: OptionPosition = {
+        id: generateId(),
+        ticker: String(formData.get(`ticker_${used}`) || '').toUpperCase(),
+        optionType: String(formData.get(`optionType_${used}`) || 'call') as 'call' | 'put',
+        side: String(formData.get(`side_${used}`) || 'buy') as 'buy' | 'sell',
+        strike: parseFloat(String(formData.get(`strike_${used}`) || '0')),
+        expiry: expiryValue,
+        quantity: parseInt(String(formData.get(`quantity_${used}`) || '0')),
+        entryPrice: parseFloat(String(formData.get(`entryPrice_${used}`) || '0')),
+        entryDate: new Date().toISOString().split('T')[0],
+        purchaseDate: purchaseDateValue || undefined,
+        notes: String(formData.get(`notes_${used}`) || '').trim() || undefined,
+        broker: String(formData.get(`broker_${used}`) || '').trim() || undefined,
+      };
+      savePosition(position);
+    }
 
-    // Save position
-    savePosition(position);
-
-    // Notify parent
     onAdd();
-
-    // Aggressive form reset
     resetForm();
+    
+    // Clear editing state
+    if (isEditing && onCancelEdit) {
+      onCancelEdit();
+    }
 
-    // Extra step: force inputs to clear and disable autofill by toggling readonly + randomizing autocomplete
     if (formRef.current) {
       const inputs = formRef.current.querySelectorAll('input, textarea, select');
       inputs.forEach((input) => {
         try {
-          // randomize autocomplete name to prevent browser reuse
           (input as HTMLInputElement).autocomplete = `off-${Math.random().toString(36).slice(2,8)}` as any;
         } catch (e) {}
         try {
@@ -89,7 +143,6 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           (input as HTMLInputElement).blur();
         } catch (e) {}
       });
-      // re-enable inputs shortly after so user can type again
       setTimeout(() => {
         inputs.forEach((input) => {
           try { (input as HTMLInputElement).readOnly = false; } catch(e) {}
@@ -97,13 +150,10 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       }, 300);
     }
     
-    // Force re-render with new counter
     setResetCounter(c => c + 1);
-    
     setIsSubmitting(false);
   };
 
-  // Generate unique names based on reset counter to defeat autofill
   const suffix = resetCounter;
   
   return (
@@ -114,13 +164,25 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
       autoComplete="off"
       style={{ opacity: isSubmitting ? 0.7 : 1 }}
     >
-      {/* Hidden dummy inputs to capture browser autofill and protect the real fields */}
       <div style={{ position: 'absolute', left: '-10000px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden' }} aria-hidden>
         <input name="username" autoComplete="username" />
         <input name="password" autoComplete="current-password" />
       </div>
 
-      <h2 className="text-xl font-bold text-black mb-4">Add New Position</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-black">
+          {isEditing ? 'Edit Position' : 'Add New Position'}
+        </h2>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
@@ -294,6 +356,22 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
 
         <div>
           <label className="block text-sm font-bold text-black mb-1">
+            Purchase Date (optional)
+          </label>
+          <input
+            key={`purchaseDate-${suffix}`}
+            type="date"
+            name={`purchaseDate_${suffix}`}
+            autoComplete="off"
+            data-lpignore="true"
+            data-form-type="other"
+            data-1pignore="true"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black font-medium"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-black mb-1">
             Broker (optional)
           </label>
           <input
@@ -333,7 +411,7 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           disabled={isSubmitting}
           className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
         >
-          {isSubmitting ? 'Adding...' : 'Add Position'}
+          {isSubmitting ? (isEditing ? 'Updating...' : 'Adding...') : (isEditing ? 'Update Position' : 'Add Position')}
         </button>
 
         <button
@@ -341,14 +419,16 @@ export default function AddPositionForm({ onAdd }: AddPositionFormProps) {
           onClick={() => {
             resetForm();
             setResetCounter(c => c + 1);
-            // focus the first input after clearing
+            if (isEditing && onCancelEdit) {
+              onCancelEdit();
+            }
             setTimeout(() => {
               try { (formRef.current?.querySelector('input[name^="ticker_"]') as HTMLInputElement | null)?.focus(); } catch (e) {}
             }, 50);
           }}
           className="mt-3 md:mt-0 w-full md:w-auto px-6 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
         >
-          Clear fields
+          {isEditing ? 'Cancel' : 'Clear fields'}
         </button>
       </div>
     </form>

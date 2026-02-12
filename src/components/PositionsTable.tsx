@@ -8,9 +8,10 @@ import PositionDetailModal from './PositionDetailModal';
 interface PositionsTableProps {
   positions: OptionPosition[];
   onDelete: () => void;
+  onEdit?: (position: OptionPosition) => void;
 }
 
-export default function PositionsTable({ positions, onDelete }: PositionsTableProps) {
+export default function PositionsTable({ positions, onDelete, onEdit }: PositionsTableProps) {
   const [selectedPosition, setSelectedPosition] = useState<OptionPosition | null>(null);
   
   const formatCurrency = (value: number) => {
@@ -84,6 +85,9 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   P&L
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Purchased
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Broker
@@ -202,6 +206,9 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                      {position.purchaseDate ? new Date(position.purchaseDate).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
                       {position.broker || '-'}
                     </td>
                     <td className="px-4 py-4 text-gray-600 max-w-xs truncate">
@@ -215,6 +222,14 @@ export default function PositionsTable({ positions, onDelete }: PositionsTablePr
                         >
                           Details
                         </button>
+                        {onEdit && (
+                          <button
+                            onClick={() => onEdit(position)}
+                            className="text-green-600 hover:text-green-900 text-sm font-medium"
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(position.id)}
                           className="text-red-600 hover:text-red-900 text-sm font-medium"

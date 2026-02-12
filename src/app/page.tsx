@@ -11,6 +11,7 @@ import { useMarketData } from '@/hooks/useMarketData';
 export default function Home() {
   const [positions, setPositions] = useState<OptionPosition[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editingPosition, setEditingPosition] = useState<OptionPosition | null>(null);
   const { fetchPrices, refreshPrices, isLoading, lastUpdated, error } = useMarketData();
 
   useEffect(() => {
@@ -25,18 +26,29 @@ export default function Home() {
     }
   }, []);
 
-  // Re-load positions when refreshKey changes (after add/delete)
+  // Re-load positions when refreshKey changes (after add/delete/edit)
   useEffect(() => {
     setPositions(getPositions());
   }, [refreshKey]);
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
+    setEditingPosition(null);
   };
 
   const handlePriceRefresh = async () => {
     const updated = await refreshPrices();
     setPositions(updated);
+  };
+
+  const handleEdit = (position: OptionPosition) => {
+    setEditingPosition(position);
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPosition(null);
   };
 
   return (
@@ -90,13 +102,21 @@ export default function Home() {
         {/* Summary Cards */}
         <PortfolioSummary positions={positions} />
 
-        {/* Add Position Form */}
-        <AddPositionForm onAdd={handleRefresh} />
+        {/* Add/Edit Position Form */}
+        <AddPositionForm 
+          onAdd={handleRefresh} 
+          editPosition={editingPosition}
+          onCancelEdit={handleCancelEdit}
+        />
 
         {/* Positions Table */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-4">Your Positions</h2>
-          <PositionsTable positions={positions} onDelete={handleRefresh} />
+          <PositionsTable 
+            positions={positions} 
+            onDelete={handleRefresh}
+            onEdit={handleEdit}
+          />
         </div>
 
         {/* Footer */}

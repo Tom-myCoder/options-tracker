@@ -14,7 +14,8 @@ export interface OptionPosition {
   quantity: number;
   entryPrice: number;
   currentPrice?: number;
-  entryDate: string;
+  entryDate: string; // System tracking date
+  purchaseDate?: string; // Optional user-specified purchase date
   notes?: string;
   broker?: string;
   lastPriceUpdate?: number; // timestamp of last price fetch

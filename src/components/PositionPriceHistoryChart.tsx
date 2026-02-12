@@ -30,7 +30,7 @@ interface ChartPoint {
 }
 
 export default function PositionPriceHistoryChart({ position }: PositionPriceHistoryChartProps) {
-  const { data, stats } = useMemo(() => {
+  const { data, yDomain, stats } = useMemo(() => {
     const history = position.priceHistory || [];
     const entryTime = new Date(position.entryDate).getTime();
     const expiryTime = new Date(position.expiry).getTime();
@@ -105,11 +105,18 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
           : (position.entryPrice - position.currentPrice) * position.quantity * 100)
       : 0;
     
-    const maxPrice = Math.max(...allData.map(d => d.price), position.entryPrice * 1.2);
-    const minPrice = Math.min(...allData.map(d => d.price), position.entryPrice * 0.5);
+    // Calculate proper Y-axis domain with padding to ensure nothing is clipped
+    const allPrices = allData.map(d => d.price);
+    const minDataPrice = allPrices.length > 0 ? Math.min(...allPrices) : position.entryPrice;
+    const maxDataPrice = allPrices.length > 0 ? Math.max(...allPrices) : position.entryPrice;
+    const priceRange = maxDataPrice - minDataPrice;
+    const padding = priceRange > 0 ? priceRange * 0.15 : position.entryPrice * 0.1;
+    const minPrice = Math.max(0, minDataPrice - padding);
+    const maxPrice = maxDataPrice + padding;
     
     return {
       data: allData,
+      yDomain: [minPrice, maxPrice],
       stats: {
         currentPnL,
         daysHeld: Math.ceil((now - entryTime) / (1000 * 60 * 60 * 24)),
@@ -177,9 +184,10 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
                 stroke="#6b7280"
               />
               <YAxis
-                domain={['auto', 'auto']}
+                domain={yDomain}
                 tickFormatter={(v) => `$${v.toFixed(2)}`}
                 stroke="#6b7280"
+                allowDecimals={true}
               />
               <Tooltip
                 content={({ active, payload }) => {
