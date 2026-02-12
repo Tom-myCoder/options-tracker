@@ -10,6 +10,8 @@ import { useMarketData } from '@/hooks/useMarketData';
 
 // Auto-refresh interval in milliseconds (15 minutes)
 const AUTO_REFRESH_INTERVAL = 15 * 60 * 1000;
+// Minimum time away to trigger catch-up refresh (5 minutes)
+const CATCH_UP_THRESHOLD = 5 * 60 * 1000;
 
 export default function Home() {
   const [positions, setPositions] = useState<OptionPosition[]>([]);
@@ -17,9 +19,12 @@ export default function Home() {
   const [editingPosition, setEditingPosition] = useState<OptionPosition | null>(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [nextRefreshIn, setNextRefreshIn] = useState(AUTO_REFRESH_INTERVAL);
+  const [catchUpMessage, setCatchUpMessage] = useState<string | null>(null);
   const { fetchPrices, refreshPrices, isLoading, lastUpdated, error } = useMarketData();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const lastVisibleRef = useRef<number>(Date.now());
+  const lastRefreshRef = useRef<number>(Date.now());
 
   // Initial load
   useEffect(() => {
@@ -30,6 +35,7 @@ export default function Home() {
     if (loadedPositions.length > 0) {
       fetchPrices(loadedPositions).then(updated => {
         setPositions(updated);
+        lastRefreshRef.current = Date.now();
       });
     }
   }, []);
@@ -78,6 +84,62 @@ export default function Home() {
     };
   }, [autoRefreshEnabled, positions.length]);
 
+  // Catch-up on wake - detect when user returns after device sleep
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        const timeAway = now - lastVisibleRef.current;
+        const timeSinceRefresh = now - lastRefreshRef.current;
+        
+        // If away for more than threshold AND we have positions
+        if (timeAway > CATCH_UP_THRESHOLD && positions.length > 0 && autoRefreshEnabled) {
+          // Calculate how many refreshes were missed
+          const missedRefreshes = Math.floor(timeSinceRefresh / AUTO_REFRESH_INTERVAL);
+          
+          if (missedRefreshes > 0 || timeSinceRefresh > AUTO_REFRESH_INTERVAL) {
+            // Trigger catch-up refresh
+            setCatchUpMessage(`Welcome back! Catching up on ${Math.floor(timeAway / 60000)} minutes of missed data...`);
+            handlePriceRefresh().then(() => {
+              // Clear message after 3 seconds
+              setTimeout(() => setCatchUpMessage(null), 3000);
+            });
+          }
+        }
+        
+        lastVisibleRef.current = now;
+      } else {
+        // Tab hidden - record the time
+        lastVisibleRef.current = Date.now();
+      }
+    };
+
+    // Also handle focus event for desktop browsers
+    const handleFocus = () => {
+      const now = Date.now();
+      const timeAway = now - lastVisibleRef.current;
+      const timeSinceRefresh = now - lastRefreshRef.current;
+      
+      if (timeAway > CATCH_UP_THRESHOLD && positions.length > 0 && autoRefreshEnabled) {
+        if (timeSinceRefresh > AUTO_REFRESH_INTERVAL) {
+          setCatchUpMessage(`Welcome back! Catching up...`);
+          handlePriceRefresh().then(() => {
+            setTimeout(() => setCatchUpMessage(null), 3000);
+          });
+        }
+      }
+      lastVisibleRef.current = now;
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [positions.length, autoRefreshEnabled]);
+
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
     setEditingPosition(null);
@@ -87,6 +149,7 @@ export default function Home() {
     const updated = await refreshPrices();
     setPositions(updated);
     setNextRefreshIn(AUTO_REFRESH_INTERVAL);
+    lastRefreshRef.current = Date.now();
   };
 
   const handleEdit = (position: OptionPosition) => {
@@ -117,6 +180,13 @@ export default function Home() {
               <p className="text-sm text-gray-500">Track your options portfolio</p>
             </div>
             <div className="flex items-center gap-3">
+              {/* Catch-up message */}
+              {catchUpMessage && (
+                <span className="text-xs text-blue-600 animate-pulse">
+                  {catchUpMessage}
+                </span>
+              )}
+              
               {/* Auto-refresh indicator */}
               {positions.length > 0 && (
                 <div className="flex items-center gap-2 text-xs">
@@ -132,7 +202,7 @@ export default function Home() {
                     <span className={`w-2 h-2 rounded-full ${autoRefreshEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
                     {autoRefreshEnabled ? 'Auto' : 'Paused'}
                   </button>
-                  {autoRefreshEnabled && !isLoading && (
+                  {autoRefreshEnabled && !isLoading && !catchUpMessage && (
                     <span className="text-gray-400">
                       Next: {formatCountdown(nextRefreshIn)}
                     </span>
@@ -164,7 +234,7 @@ export default function Home() {
                 ) : (
                   <>
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.000 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Refresh Prices
                   </>
@@ -203,7 +273,7 @@ export default function Home() {
           <p className="mt-1">Data stored locally in your browser</p>
           {positions.length > 0 && (
             <p className="mt-1 text-xs text-gray-400">
-              Auto-refresh: {autoRefreshEnabled ? 'Enabled (every 15 min)' : 'Paused'}
+              Auto-refresh: {autoRefreshEnabled ? 'Enabled (every 15 min + catch-up on wake)' : 'Paused'}
             </p>
           )}
         </footer>
