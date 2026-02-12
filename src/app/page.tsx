@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import AddPositionForm from '@/components/AddPositionForm';
 import PositionsTable from '@/components/PositionsTable';
 import PortfolioSummary from '@/components/PortfolioSummary';
+import ScreenshotImport from '@/components/ScreenshotImport';
 import { OptionPosition } from '@/types/options';
-import { getPositions } from '@/lib/storage';
+import { getPositions, savePosition } from '@/lib/storage';
 import { useMarketData } from '@/hooks/useMarketData';
 
 // Auto-refresh interval in milliseconds (15 minutes)
@@ -20,6 +21,7 @@ export default function Home() {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [nextRefreshIn, setNextRefreshIn] = useState(AUTO_REFRESH_INTERVAL);
   const [catchUpMessage, setCatchUpMessage] = useState<string | null>(null);
+  const [showScreenshotImport, setShowScreenshotImport] = useState(false);
   const { fetchPrices, refreshPrices, isLoading, lastUpdated, error } = useMarketData();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
@@ -162,6 +164,15 @@ export default function Home() {
     setEditingPosition(null);
   };
 
+  const handleScreenshotImport = (positions: OptionPosition[]) => {
+    // Save all imported positions
+    positions.forEach(position => {
+      savePosition(position);
+    });
+    setShowScreenshotImport(false);
+    handleRefresh();
+  };
+
   // Format countdown time
   const formatCountdown = (ms: number) => {
     const minutes = Math.floor(ms / 60000);
@@ -218,6 +229,16 @@ export default function Home() {
               {error && (
                 <span className="text-xs text-red-500">{error}</span>
               )}
+              <button
+                onClick={() => setShowScreenshotImport(true)}
+                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 flex items-center gap-2"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Import Screenshot
+              </button>
               <button
                 onClick={handlePriceRefresh}
                 disabled={isLoading}
@@ -278,6 +299,16 @@ export default function Home() {
           )}
         </footer>
       </div>
+
+      {/* Screenshot Import Modal */}
+      {showScreenshotImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <ScreenshotImport
+            onImport={handleScreenshotImport}
+            onCancel={() => setShowScreenshotImport(false)}
+          />
+        </div>
+      )}
     </main>
   );
 }
