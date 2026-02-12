@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { OptionPosition } from '@/types/options';
+import { fetchAndStoreHistoricalPrices } from '@/lib/storage';
 import {
   LineChart,
   Line,
@@ -28,12 +29,40 @@ interface PayoffPoint {
 
 export default function PositionDetailModal({ position, onClose }: PositionDetailModalProps) {
   const [simulatedPrice, setSimulatedPrice] = useState<number | null>(null);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [localPosition, setLocalPosition] = useState(position);
+  
+  const handleFetchHistory = useCallback(async () => {
+    if (!localPosition.purchaseDate) {
+      setHistoryError('No purchase date set for this position');
+      return;
+    }
+    
+    setIsFetchingHistory(true);
+    setHistoryError(null);
+    
+    try {
+      await fetchAndStoreHistoricalPrices(localPosition);
+      // Refresh the position data
+      const { getPositions } = await import('@/lib/storage');
+      const positions = getPositions();
+      const updated = positions.find(p => p.id === localPosition.id);
+      if (updated) {
+        setLocalPosition(updated);
+      }
+    } catch (err) {
+      setHistoryError('Failed to fetch historical prices. Note: Historical option data is estimated from underlying stock prices.');
+    } finally {
+      setIsFetchingHistory(false);
+    }
+  }, [localPosition]);
   
   const { payoffData, breakEven, maxProfit, maxLoss, currentUnderlyingPrice } = useMemo(() => {
     // Generate price range around strike (±50% of strike, minimum $10 range)
-    const range = Math.max(position.strike * 0.5, 50);
-    const minPrice = Math.max(1, Math.round(position.strike - range));
-    const maxPrice = Math.round(position.strike + range);
+    const range = Math.max(localPosition.strike * 0.5, 50);
+    const minPrice = Math.max(1, Math.round(localPosition.strike - range));
+    const maxPrice = Math.round(localPosition.strike + range);
     const steps = 100;
     const stepSize = (maxPrice - minPrice) / steps;
     
@@ -41,8 +70,8 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
     const data: PayoffPoint[] = [];
     for (let i = 0; i <= steps; i++) {
       const price = minPrice + i * stepSize;
-      const payoff = calculatePayoff(position, price);
-      const pnl = calculatePnL(position, price);
+      const payoff = calculatePayoff(localPosition, price);
+      const pnl = calculatePnL(localPosition, price);
       data.push({ price: Math.round(price * 100) / 100, payoff, pnl });
     }
     
@@ -62,9 +91,9 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
     const maxLoss = Math.min(...data.map(d => d.pnl));
     
     // Estimate current underlying price from position data or use strike as fallback
-    const currentUnderlyingPrice = position.currentPrice 
-      ? estimateUnderlyingPrice(position)
-      : position.strike;
+    const currentUnderlyingPrice = localPosition.currentPrice 
+      ? estimateUnderlyingPrice(localPosition)
+      : localPosition.strike;
     
     return {
       payoffData: data,
@@ -73,23 +102,23 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
       maxLoss,
       currentUnderlyingPrice,
     };
-  }, [position]);
+  }, [localPosition]);
   
   // Current P&L based on current option price (if available)
   const currentPnL = useMemo(() => {
-    if (position.currentPrice != null) {
-      return calculatePnL(position, null, position.currentPrice);
+    if (localPosition.currentPrice != null) {
+      return calculatePnL(localPosition, null, localPosition.currentPrice);
     }
     return null;
-  }, [position]);
+  }, [localPosition]);
   
   // Simulated P&L for the slider
   const simulatedPnL = useMemo(() => {
     if (simulatedPrice != null) {
-      return calculatePnL(position, simulatedPrice);
+      return calculatePnL(localPosition, simulatedPrice);
     }
     return null;
-  }, [simulatedPrice, position]);
+  }, [simulatedPrice, localPosition]);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -113,11 +142,12 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
         <div className="flex items-center justify-between p-6 border-b">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              {position.ticker} {position.optionType.toUpperCase()} ${position.strike} {position.expiry}
+              {localPosition.ticker} {localPosition.optionType.toUpperCase()} ${localPosition.strike} {localPosition.expiry}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {position.side === 'buy' ? 'Long' : 'Short'} {position.quantity} contract{position.quantity !== 1 ? 's' : ''}
-              {position.broker && ` • ${position.broker}`}
+              {localPosition.side === 'buy' ? 'Long' : 'Short'} {localPosition.quantity} contract{localPosition.quantity !== 1 ? 's' : ''}
+              {localPosition.broker && ` • ${localPosition.broker}`}
+              {localPosition.purchaseDate && ` • Purchased: ${new Date(localPosition.purchaseDate).toLocaleDateString()}`}
             </p>
           </div>
           <button
@@ -133,12 +163,12 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gray-50">
           <div>
             <p className="text-xs text-gray-600 uppercase">Entry Price</p>
-            <p className="text-lg font-semibold">${position.entryPrice.toFixed(2)}</p>
+            <p className="text-lg font-semibold">${localPosition.entryPrice.toFixed(2)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-600 uppercase">Current Price</p>
             <p className="text-lg font-semibold">
-              {position.currentPrice != null ? `$${position.currentPrice.toFixed(2)}` : '—'}
+              {localPosition.currentPrice != null ? `$${localPosition.currentPrice.toFixed(2)}` : '—'}
             </p>
           </div>
           <div>
@@ -181,7 +211,7 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
                 />
                 <ReferenceLine y={0} stroke="#374151" strokeDasharray="2 2" />
-                <ReferenceLine x={position.strike} stroke="#9ca3af" strokeDasharray="3 3" label={{ value: 'Strike', position: 'top', fill: '#6b7280', fontSize: 10 }} />
+                <ReferenceLine x={localPosition.strike} stroke="#9ca3af" strokeDasharray="3 3" label={{ value: 'Strike', position: 'top', fill: '#6b7280', fontSize: 10 }} />
                 
                 {/* Break-even lines */}
                 {breakEven.map((be, i) => (
@@ -249,7 +279,7 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>${Math.min(...payoffData.map(d => d.price)).toFixed(2)}</span>
-              <span>Strike: ${position.strike}</span>
+              <span>Strike: ${localPosition.strike}</span>
               <span>${Math.max(...payoffData.map(d => d.price)).toFixed(2)}</span>
             </div>
           </div>
@@ -261,18 +291,45 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
             </div>
           )}
           
-          {position.notes && (
+          {localPosition.notes && (
             <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
               <p className="text-sm text-gray-700">
                 <span className="font-medium">Notes: </span>
-                {position.notes}
+                {localPosition.notes}
+              </p>
+            </div>
+          )}
+          
+          {/* Fetch Historical Prices Button */}
+          {localPosition.purchaseDate && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Historical Price Data</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Fetch estimated prices from {new Date(localPosition.purchaseDate).toLocaleDateString()} to today
+                  </p>
+                </div>
+                <button
+                  onClick={handleFetchHistory}
+                  disabled={isFetchingHistory}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isFetchingHistory ? 'Fetching...' : 'Fetch History'}
+                </button>
+              </div>
+              {historyError && (
+                <p className="text-xs text-red-600 mt-2">{historyError}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                Note: Historical option prices are estimated from underlying stock data.
               </p>
             </div>
           )}
           
           {/* Historical Price Chart with Theta Projection */}
           <div className="mt-6 pt-6 border-t">
-            <PositionPriceHistoryChart position={position} />
+            <PositionPriceHistoryChart position={localPosition} />
           </div>
         </div>
       </div>

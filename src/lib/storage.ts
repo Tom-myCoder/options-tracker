@@ -171,3 +171,49 @@ export const importPositionsJSON = (jsonText: string): void => {
     console.error('Invalid JSON');
   }
 };
+
+// Fetch and store historical prices for a position
+export const fetchAndStoreHistoricalPrices = async (position: OptionPosition): Promise<void> => {
+  if (!position.purchaseDate) return;
+  
+  try {
+    const url = `/api/option-history?ticker=${position.ticker}&expiry=${position.expiry}&strike=${position.strike}&type=${position.optionType}&from=${position.purchaseDate}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch historical prices');
+    }
+    
+    const data = await response.json();
+    
+    if (data.prices && Array.isArray(data.prices)) {
+      const positions = getPositions();
+      const index = positions.findIndex(p => p.id === position.id);
+      if (index === -1) return;
+      
+      // Convert API prices to PriceSnapshot format
+      const historicalSnapshots = data.prices.map((p: { date: string; price: number; underlyingPrice?: number }) => ({
+        timestamp: new Date(p.date).getTime(),
+        price: p.price,
+        underlyingPrice: p.underlyingPrice,
+      }));
+      
+      // Merge with existing history, avoiding duplicates
+      const existingHistory = positions[index].priceHistory || [];
+      const existingTimestamps = new Set(existingHistory.map(h => h.timestamp));
+      
+      const newSnapshots = historicalSnapshots.filter(
+        (s: { timestamp: number }) => !existingTimestamps.has(s.timestamp)
+      );
+      
+      positions[index].priceHistory = [...existingHistory, ...newSnapshots].sort(
+        (a, b) => a.timestamp - b.timestamp
+      );
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+    }
+  } catch (error) {
+    console.error('Error fetching historical prices:', error);
+    throw error;
+  }
+};
