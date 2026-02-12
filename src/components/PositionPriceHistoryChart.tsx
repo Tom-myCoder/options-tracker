@@ -30,14 +30,17 @@ interface ChartPoint {
 }
 
 export default function PositionPriceHistoryChart({ position }: PositionPriceHistoryChartProps) {
-  const { data, yDomain, stats } = useMemo(() => {
+  const { data, yDomain, stats, hasHistoricalData } = useMemo(() => {
     const history = position.priceHistory || [];
     const entryTime = new Date(position.entryDate).getTime();
     const expiryTime = new Date(position.expiry).getTime();
     const now = Date.now();
     
+    // Filter out future-dated historical entries (shouldn't happen but just in case)
+    const validHistory = history.filter(h => h.timestamp <= now + 24 * 60 * 60 * 1000);
+    
     // Build historical data points
-    const historicalPoints: ChartPoint[] = history.map(h => {
+    const historicalPoints: ChartPoint[] = validHistory.map(h => {
       const date = new Date(h.timestamp);
       const pnl = position.side === 'buy'
         ? (h.price - position.entryPrice) * position.quantity * 100
@@ -52,11 +55,20 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
       };
     }).sort((a, b) => a.timestamp - b.timestamp);
     
-    // Add entry point if not in history
-    if (historicalPoints.length === 0 || historicalPoints[0].timestamp > entryTime) {
+    // Add entry point if not in history and we have purchase date
+    const purchaseTime = position.purchaseDate 
+      ? new Date(position.purchaseDate).getTime()
+      : entryTime;
+    
+    // Always add the entry/purchase point as the starting point
+    const earliestPoint = historicalPoints.length > 0 
+      ? historicalPoints[0] 
+      : null;
+      
+    if (!earliestPoint || earliestPoint.timestamp > purchaseTime) {
       historicalPoints.unshift({
-        date: new Date(position.entryDate).toLocaleDateString(),
-        timestamp: entryTime,
+        date: new Date(purchaseTime).toLocaleDateString(),
+        timestamp: purchaseTime,
         price: position.entryPrice,
         underlyingPrice: undefined,
         pnl: 0,
@@ -64,17 +76,37 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
       });
     }
     
-    // Calculate Theta decay projection
+    // Add current point if not already in history
+    if (position.currentPrice != null) {
+      const hasCurrentPoint = historicalPoints.some(
+        h => Math.abs(h.timestamp - now) < 24 * 60 * 60 * 1000
+      );
+      if (!hasCurrentPoint) {
+        const currentPnl = position.side === 'buy'
+          ? (position.currentPrice - position.entryPrice) * position.quantity * 100
+          : (position.entryPrice - position.currentPrice) * position.quantity * 100;
+        historicalPoints.push({
+          date: new Date().toLocaleDateString(),
+          timestamp: now,
+          price: position.currentPrice,
+          underlyingPrice: undefined,
+          pnl: currentPnl,
+          projected: false,
+        });
+      }
+    }
+    
+    // Re-sort after adding points
+    historicalPoints.sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Calculate Theta decay projection (only future dates)
     const projectedPoints: ChartPoint[] = [];
     const daysToExpiry = Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24));
     
     if (daysToExpiry > 0 && position.currentPrice != null) {
-      // Estimate daily theta (simplified assumption: linear decay to intrinsic value at expiry)
-      // This is a rough approximation - real theta is non-linear
       const currentPrice = position.currentPrice;
-      const intrinsicValueAtExpiry = 0; // At expiry, time value = 0, only intrinsic remains
-      const timeValue = currentPrice - calculateIntrinsicValue(position, position.currentPrice);
-      const dailyThetaDecay = timeValue / daysToExpiry;
+      const timeValue = Math.max(0, currentPrice - getIntrinsicValue(position));
+      const dailyThetaDecay = timeValue / Math.max(1, daysToExpiry);
       
       for (let day = 1; day <= Math.min(daysToExpiry, 30); day++) {
         const projectedDate = new Date(now + day * 24 * 60 * 60 * 1000);
@@ -95,7 +127,7 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
       }
     }
     
-    // Combine historical and projected
+    // Combine historical and projected - keep them separate for different line styles
     const allData = [...historicalPoints, ...projectedPoints];
     
     // Calculate stats
@@ -105,7 +137,7 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
           : (position.entryPrice - position.currentPrice) * position.quantity * 100)
       : 0;
     
-    // Calculate proper Y-axis domain with padding to ensure nothing is clipped
+    // Calculate proper Y-axis domain with padding
     const allPrices = allData.map(d => d.price);
     const minDataPrice = allPrices.length > 0 ? Math.min(...allPrices) : position.entryPrice;
     const maxDataPrice = allPrices.length > 0 ? Math.max(...allPrices) : position.entryPrice;
@@ -116,13 +148,20 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
     
     return {
       data: allData,
+      historicalData: historicalPoints,
+      projectedData: projectedPoints,
       yDomain: [minPrice, maxPrice],
+      hasHistoricalData: historicalPoints.length > 1, // More than just entry point
       stats: {
         currentPnL,
-        daysHeld: Math.ceil((now - entryTime) / (1000 * 60 * 60 * 24)),
+        daysHeld: Math.ceil((now - purchaseTime) / (1000 * 60 * 60 * 24)),
         daysToExpiry: Math.max(0, daysToExpiry),
         maxDrawdown: calculateMaxDrawdown(historicalPoints, position),
         bestPrice: historicalPoints.length > 0 ? Math.max(...historicalPoints.map(h => h.price)) : position.entryPrice,
+        dataPoints: historicalPoints.length,
+        dateRange: historicalPoints.length > 0 
+          ? `${new Date(historicalPoints[0].timestamp).toLocaleDateString()} - ${new Date(historicalPoints[historicalPoints.length - 1].timestamp).toLocaleDateString()}`
+          : 'N/A',
       },
     };
   }, [position]);
@@ -163,14 +202,24 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
           </p>
         </div>
         <div className="bg-gray-50 p-3 rounded">
-          <p className="text-gray-500 text-xs">Best Price Seen</p>
-          <p className="font-semibold text-green-600">${stats.bestPrice.toFixed(2)}</p>
+          <p className="text-gray-500 text-xs">Data Points</p>
+          <p className="font-semibold">{stats.dataPoints}</p>
+          <p className="text-xs text-gray-400">{stats.dateRange}</p>
         </div>
       </div>
       
       {/* Price Chart */}
       <div>
         <h4 className="text-sm font-medium text-gray-700 mb-2">Option Price History & Theta Projection</h4>
+        
+        {!hasHistoricalData && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-3">
+            <p className="text-sm text-yellow-800">
+              ⚠️ Limited historical data. Click "Fetch History" above to load prices from purchase date.
+            </p>
+          </div>
+        )}
+        
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -203,8 +252,11 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
                         {point.projected && (
                           <p className="text-amber-600 text-xs mt-1">Projected (Theta)</p>
                         )}
+                        {!point.projected && point.timestamp <= Date.now() && (
+                          <p className="text-blue-600 text-xs mt-1">Historical</p>
+                        )}
                         {point.underlyingPrice && (
-                          <p className="text-blue-600 text-xs">
+                          <p className="text-gray-500 text-xs">
                             Underlying: ${point.underlyingPrice.toFixed(2)}
                           </p>
                         )}
@@ -223,7 +275,7 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
                 label={{ value: `Entry: $${position.entryPrice.toFixed(2)}`, position: 'right', fill: '#374151', fontSize: 10 }}
               />
               
-              {/* Historical price line */}
+              {/* Historical price line - solid blue */}
               <Line
                 type="monotone"
                 dataKey="price"
@@ -233,9 +285,10 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
                 activeDot={{ r: 5 }}
                 connectNulls={false}
                 name="Historical"
+                data={data.filter(d => !d.projected)}
               />
               
-              {/* Projected theta decay (dashed) */}
+              {/* Projected theta decay - dashed orange */}
               <Line
                 type="monotone"
                 dataKey="price"
@@ -251,7 +304,7 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
           </ResponsiveContainer>
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          Solid line = actual prices • Dashed line = projected theta decay to expiry
+          Solid blue line = actual/historical prices • Dashed orange line = projected theta decay to expiry
         </p>
       </div>
       
@@ -272,12 +325,21 @@ export default function PositionPriceHistoryChart({ position }: PositionPriceHis
   );
 }
 
-function calculateIntrinsicValue(position: OptionPosition, optionPrice: number): number {
-  // We need underlying price to calculate true intrinsic value
-  // For projection purposes, we approximate based on current option price
-  // ATM options have ~0 intrinsic, ITM have intrinsic = option price - time value
-  // This is a simplification
-  return 0;
+function getIntrinsicValue(position: OptionPosition): number {
+  // Estimate intrinsic value based on option type
+  // For puts: max(0, strike - underlying)
+  // For calls: max(0, underlying - strike)
+  // We approximate using current price as proxy
+  if (!position.currentPrice) return 0;
+  
+  // Rough estimate: if option price < 0.5 * strike, likely OTM
+  // This is a simplification for theta calculation
+  if (position.optionType === 'call') {
+    // Assume ATM if we don't have underlying
+    return 0;
+  } else {
+    return 0;
+  }
 }
 
 function calculateMaxDrawdown(history: ChartPoint[], position: OptionPosition): number {
