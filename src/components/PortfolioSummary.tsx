@@ -117,13 +117,31 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
 
   return (
     <>
-      <div className="flex items-center justify-end space-x-2 mb-4">
-        <button onClick={handleExportCSV} className="px-3 py-1 bg-gray-100 rounded-md text-sm">Export CSV</button>
-        <button onClick={handleExportJSON} className="px-3 py-1 bg-gray-100 rounded-md text-sm">Export JSON</button>
-        <label className="px-3 py-1 bg-gray-100 rounded-md text-sm cursor-pointer">
-          Import File
-          <input type="file" accept=".csv,.json" onChange={(e) => handleImportFile(e.target.files ? e.target.files[0] : null)} style={{ display: 'none' }} />
-        </label>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <span className="text-sm text-gray-600 font-medium">Data Backup & Restore</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <button 
+            onClick={handleExportCSV} 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Export CSV
+          </button>
+          <button 
+            onClick={handleExportJSON} 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Export JSON
+          </button>
+          <label className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-pointer hover:bg-green-700 transition-colors">
+            Import File
+            <input 
+              type="file" 
+              accept=".csv,.json" 
+              onChange={(e) => handleImportFile(e.target.files ? e.target.files[0] : null)} 
+              style={{ display: 'none' }} 
+            />
+          </label>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
