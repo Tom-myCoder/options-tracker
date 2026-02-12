@@ -1,7 +1,7 @@
 'use client';
 
 import { OptionPosition } from '@/types/options';
-import { exportPositionsCSV, importPositionsCSV, exportPositionsJSON, importPositionsJSON } from '@/lib/storage';
+import { exportPositionsCSV, importPositionsCSV, exportPositionsJSON, importPositionsJSON, exportPositionsWithHistoryJSON } from '@/lib/storage';
 
 interface PortfolioSummaryProps {
   positions: OptionPosition[];
@@ -90,6 +90,19 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportFullJSON = () => {
+    const json = exportPositionsWithHistoryJSON();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'options-positions-full.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const handleImportFile = async (file: File | null) => {
     if (!file) return;
     const text = await file.text();
@@ -123,14 +136,23 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
           <button 
             onClick={handleExportCSV} 
             className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            title="Export positions as CSV (no price history)"
           >
             Export CSV
           </button>
           <button 
             onClick={handleExportJSON} 
             className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            title="Export positions as JSON with price history"
           >
             Export JSON
+          </button>
+          <button 
+            onClick={handleExportFullJSON} 
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+            title="Export positions with full price history and stats"
+          >
+            Export Full Data
           </button>
           <label className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-pointer hover:bg-green-700 transition-colors">
             Import File

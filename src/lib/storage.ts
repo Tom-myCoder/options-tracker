@@ -159,7 +159,7 @@ export const importPositionsCSV = (csvText: string): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
 };
 
-// Export/Import JSON for backup
+// Export/Import JSON for backup (includes full price history)
 export const exportPositionsJSON = (): string => JSON.stringify(getPositions(), null, 2);
 export const importPositionsJSON = (jsonText: string): void => {
   try {
@@ -170,6 +170,19 @@ export const importPositionsJSON = (jsonText: string): void => {
   } catch (e) {
     console.error('Invalid JSON');
   }
+};
+
+// Export positions with price history as expanded JSON for detailed analysis
+export const exportPositionsWithHistoryJSON = (): string => {
+  const positions = getPositions();
+  const exportData = positions.map(p => ({
+    ...p,
+    priceHistoryCount: p.priceHistory?.length || 0,
+    daysOfHistory: p.priceHistory && p.priceHistory.length > 0
+      ? Math.ceil((Date.now() - Math.min(...p.priceHistory.map(h => h.timestamp))) / (1000 * 60 * 60 * 24))
+      : 0,
+  }));
+  return JSON.stringify(exportData, null, 2);
 };
 
 // Fetch and store historical prices for a position
