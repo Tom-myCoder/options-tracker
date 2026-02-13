@@ -15,6 +15,7 @@ interface ExtractedPosition {
   entryPrice: number;
   broker?: string;
   confidence: 'high' | 'medium' | 'low';
+  calculationMethod?: 'extracted' | 'calculated';
   rawText?: string;
 }
 
@@ -47,9 +48,25 @@ Extract ALL option positions visible in the image. For each position, identify:
 - strike: Strike price as number (e.g., 145, 140.50)
 - expiry: Expiration date in YYYY-MM-DD format. Convert any date format (e.g., "Feb 21 2025" → "2025-02-21", "2/21/25" → "2025-02-21")
 - quantity: Number of contracts as positive integer
-- entryPrice: Entry price per contract as number (the price paid/received when position opened)
+- entryPrice: Entry price per contract (CRITICAL - see below for calculation)
 - broker: Broker name if visible in UI (Schwab, Fidelity, TD, Robinhood, etc.)
 - confidence: "high" if clearly readable, "medium" if somewhat unclear, "low" if uncertain
+
+ENTRY PRICE CALCULATION (IMPORTANT):
+If the screenshot shows "entry price" or "cost basis" or "average entry" → use that value directly.
+
+If entry price is NOT shown but you see:
+- Current/market price (e.g., $2.50, Mark $2.50, Last $2.50)
+- Percentage change or P&L % (e.g., "+25%", "-15%", "▼ 20%")
+
+Then CALCULATE entryPrice using: entryPrice = currentPrice / (1 + percentChange/100)
+
+Examples:
+- Current $2.50, Change +25% → entryPrice = 2.50 / 1.25 = $2.00
+- Current $3.00, Change -10% → entryPrice = 3.00 / 0.90 = $3.33
+- Current $1.80, Change +50% → entryPrice = 1.80 / 1.50 = $1.20
+
+Set calculationMethod to "calculated" if you computed it, or "extracted" if directly read from image.
 
 Return ONLY a JSON object in this exact format:
 {
@@ -62,6 +79,7 @@ Return ONLY a JSON object in this exact format:
       "expiry": "2025-02-21",
       "quantity": 2,
       "entryPrice": 0.67,
+      "calculationMethod": "extracted",
       "broker": "Schwab",
       "confidence": "high"
     }

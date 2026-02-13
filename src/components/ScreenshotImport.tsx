@@ -14,6 +14,7 @@ interface ExtractedPosition {
   entryPrice: number;
   broker?: string;
   confidence: 'high' | 'medium' | 'low';
+  calculationMethod?: 'extracted' | 'calculated';
   selected?: boolean;
 }
 
@@ -290,6 +291,11 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                         <span className={`text-xs ${getConfidenceColor(position.confidence)}`}>
                           {position.confidence} confidence
                         </span>
+                        {position.calculationMethod === 'calculated' && (
+                          <span className="text-xs text-blue-600" title="Entry price calculated from current price and % change">
+                            🧮 calculated
+                          </span>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-sm">
