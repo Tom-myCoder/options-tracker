@@ -142,9 +142,16 @@ export default function Home() {
     };
   }, [positions.length, autoRefreshEnabled]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshKey(prev => prev + 1);
     setEditingPosition(null);
+    
+    // Auto-fetch prices after adding a position
+    const updatedPositions = getPositions();
+    if (updatedPositions.length > 0) {
+      await fetchPrices(updatedPositions);
+      setPositions(getPositions());
+    }
   };
 
   const handlePriceRefresh = async () => {
@@ -164,13 +171,20 @@ export default function Home() {
     setEditingPosition(null);
   };
 
-  const handleScreenshotImport = (positions: OptionPosition[]) => {
+  const handleScreenshotImport = async (positions: OptionPosition[]) => {
     // Save all imported positions
     positions.forEach(position => {
       savePosition(position);
     });
     setShowScreenshotImport(false);
     handleRefresh();
+    
+    // Auto-fetch prices for newly imported positions
+    if (positions.length > 0) {
+      const updatedPositions = getPositions();
+      await fetchPrices(updatedPositions);
+      setPositions(getPositions());
+    }
   };
 
   // Format countdown time

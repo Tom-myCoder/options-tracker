@@ -305,7 +305,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                             type="number"
                             value={position.strike}
                             onChange={(e) => updatePosition(index, 'strike', parseFloat(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-sm"
+                            className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
                         <div>
@@ -314,7 +314,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                             type="text"
                             value={position.expiry}
                             onChange={(e) => updatePosition(index, 'expiry', e.target.value)}
-                            className="w-full px-2 py-1 border rounded text-sm"
+                            className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
                         <div>
@@ -323,7 +323,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                             type="number"
                             value={position.quantity}
                             onChange={(e) => updatePosition(index, 'quantity', parseInt(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-sm"
+                            className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
                         <div>
@@ -333,7 +333,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                             step="0.01"
                             value={position.entryPrice}
                             onChange={(e) => updatePosition(index, 'entryPrice', parseFloat(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-sm"
+                            className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
                       </div>
