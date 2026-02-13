@@ -14,9 +14,11 @@ import {
   ReferenceDot,
 } from 'recharts';
 import PositionPriceHistoryChart from './PositionPriceHistoryChart';
+import MultiPositionChart from './MultiPositionChart';
 
 interface PositionDetailModalProps {
   position: OptionPosition;
+  allPositions: OptionPosition[];
   onClose: () => void;
 }
 
@@ -26,9 +28,10 @@ interface PayoffPoint {
   pnl: number;
 }
 
-export default function PositionDetailModal({ position, onClose }: PositionDetailModalProps) {
+export default function PositionDetailModal({ position, allPositions, onClose }: PositionDetailModalProps) {
   const [simulatedPrice, setSimulatedPrice] = useState<number | null>(null);
   const [localPosition] = useState(position);
+  const [activeTab, setActiveTab] = useState<'payoff' | 'history' | 'compare'>('payoff');
   
   const { payoffData, breakEven, maxProfit, maxLoss, currentUnderlyingPrice } = useMemo(() => {
     // Generate price range around strike (±50% of strike, minimum $10 range)
@@ -159,137 +162,179 @@ export default function PositionDetailModal({ position, onClose }: PositionDetai
           </div>
         </div>
         
-        {/* Chart */}
+        {/* Tabs */}
+        <div className="border-b">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('payoff')}
+              className={`px-6 py-3 text-sm font-medium ${
+                activeTab === 'payoff'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Payoff Chart
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-3 text-sm font-medium ${
+                activeTab === 'history'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Price History
+            </button>
+            <button
+              onClick={() => setActiveTab('compare')}
+              className={`px-6 py-3 text-sm font-medium ${
+                activeTab === 'compare'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Compare Positions
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Content */}
         <div className="p-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Payoff at Expiration</h3>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={payoffData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="price"
-                  type="number"
-                  domain={['dataMin', 'dataMax']}
-                  tickFormatter={(v) => `$${v}`}
-                  stroke="#6b7280"
+          {activeTab === 'payoff' && (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">Payoff at Expiration</h3>
+              <div className="h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={payoffData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="price"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={(v) => `$${v}`}
+                      stroke="#6b7280"
+                    />
+                    <YAxis
+                      tickFormatter={(v) => `$${v}`}
+                      stroke="#6b7280"
+                    />
+                    <Tooltip
+                      formatter={(value) => [formatCurrency(Number(value)), 'P&L']}
+                      labelFormatter={(label) => `Underlying: $${label}`}
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
+                    />
+                    <ReferenceLine y={0} stroke="#374151" strokeDasharray="2 2" />
+                    <ReferenceLine x={localPosition.strike} stroke="#9ca3af" strokeDasharray="3 3" label={{ value: 'Strike', position: 'top', fill: '#6b7280', fontSize: 10 }} />
+                    
+                    {breakEven.map((be, i) => (
+                      <ReferenceLine
+                        key={i}
+                        x={be}
+                        stroke="#10b981"
+                        strokeDasharray="3 3"
+                        label={{ value: `BE`, position: 'top', fill: '#10b981', fontSize: 10 }}
+                      />
+                    ))}
+                    
+                    {currentUnderlyingPrice && (
+                      <ReferenceDot
+                        x={currentUnderlyingPrice}
+                        y={payoffData.find(d => d.price >= currentUnderlyingPrice)?.pnl || 0}
+                        r={6}
+                        fill="#3b82f6"
+                        stroke="none"
+                        label={{ value: 'Current', position: 'top', fill: '#3b82f6', fontSize: 10 }}
+                      />
+                    )}
+                    
+                    {simulatedPrice && (
+                      <ReferenceDot
+                        x={simulatedPrice}
+                        y={simulatedPnL || 0}
+                        r={6}
+                        fill="#f59e0b"
+                        stroke="none"
+                        label={{ value: 'Simulated', position: 'bottom', fill: '#f59e0b', fontSize: 10 }}
+                      />
+                    )}
+                    
+                    <Line
+                      type="monotone"
+                      dataKey="pnl"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">Simulate Underlying Price</label>
+                  <span className="text-sm font-semibold text-amber-600">
+                    {simulatedPrice ? `$${simulatedPrice.toFixed(2)} (${simulatedPnL != null ? formatCurrency(simulatedPnL) : '—'})` : 'Drag slider'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={Math.min(...payoffData.map(d => d.price))}
+                  max={Math.max(...payoffData.map(d => d.price))}
+                  step={0.01}
+                  value={simulatedPrice ?? currentUnderlyingPrice}
+                  onChange={(e) => setSimulatedPrice(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
                 />
-                <YAxis
-                  tickFormatter={(v) => `$${v}`}
-                  stroke="#6b7280"
-                />
-                <Tooltip
-                  formatter={(value) => [formatCurrency(Number(value)), 'P&L']}
-                  labelFormatter={(label) => `Underlying: $${label}`}
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px' }}
-                />
-                <ReferenceLine y={0} stroke="#374151" strokeDasharray="2 2" />
-                <ReferenceLine x={localPosition.strike} stroke="#9ca3af" strokeDasharray="3 3" label={{ value: 'Strike', position: 'top', fill: '#6b7280', fontSize: 10 }} />
-                
-                {/* Break-even lines */}
-                {breakEven.map((be, i) => (
-                  <ReferenceLine
-                    key={i}
-                    x={be}
-                    stroke="#10b981"
-                    strokeDasharray="3 3"
-                    label={{ value: `BE`, position: 'top', fill: '#10b981', fontSize: 10 }}
-                  />
-                ))}
-                
-                {/* Current underlying price dot */}
-                {currentUnderlyingPrice && (
-                  <ReferenceDot
-                    x={currentUnderlyingPrice}
-                    y={payoffData.find(d => d.price >= currentUnderlyingPrice)?.pnl || 0}
-                    r={6}
-                    fill="#3b82f6"
-                    stroke="none"
-                    label={{ value: 'Current', position: 'top', fill: '#3b82f6', fontSize: 10 }}
-                  />
-                )}
-                
-                {/* Simulated price dot */}
-                {simulatedPrice && (
-                  <ReferenceDot
-                    x={simulatedPrice}
-                    y={simulatedPnL || 0}
-                    r={6}
-                    fill="#f59e0b"
-                    stroke="none"
-                    label={{ value: 'Simulated', position: 'bottom', fill: '#f59e0b', fontSize: 10 }}
-                  />
-                )}
-                
-                <Line
-                  type="monotone"
-                  dataKey="pnl"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          
-          {/* Price Simulator */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700">Simulate Underlying Price</label>
-              <span className="text-sm font-semibold text-amber-600">
-                {simulatedPrice ? `$${simulatedPrice.toFixed(2)} (${simulatedPnL != null ? formatCurrency(simulatedPnL) : '—'})` : 'Drag slider'}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={Math.min(...payoffData.map(d => d.price))}
-              max={Math.max(...payoffData.map(d => d.price))}
-              step={0.01}
-              value={simulatedPrice ?? currentUnderlyingPrice}
-              onChange={(e) => setSimulatedPrice(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>${Math.min(...payoffData.map(d => d.price)).toFixed(2)}</span>
-              <span>Strike: ${localPosition.strike}</span>
-              <span>${Math.max(...payoffData.map(d => d.price)).toFixed(2)}</span>
-            </div>
-          </div>
-          
-          {breakEven.length > 0 && (
-            <div className="mt-4 text-sm text-gray-600">
-              <span className="font-medium">Break-even{breakEven.length > 1 ? 's' : ''}: </span>
-              {breakEven.map(be => `$${be.toFixed(2)}`).join(', ')}
-            </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>${Math.min(...payoffData.map(d => d.price)).toFixed(2)}</span>
+                  <span>Strike: ${localPosition.strike}</span>
+                  <span>${Math.max(...payoffData.map(d => d.price)).toFixed(2)}</span>
+                </div>
+              </div>
+              
+              {breakEven.length > 0 && (
+                <div className="mt-4 text-sm text-gray-600">
+                  <span className="font-medium">Break-even{breakEven.length > 1 ? 's' : ''}: </span>
+                  {breakEven.map(be => `$${be.toFixed(2)}`).join(', ')}
+                </div>
+              )}
+              
+              {localPosition.notes && (
+                <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Notes: </span>
+                    {localPosition.notes}
+                  </p>
+                </div>
+              )}
+            </>
           )}
-          
-          {localPosition.notes && (
-            <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
-              <p className="text-sm text-gray-700">
-                <span className="font-medium">Notes: </span>
-                {localPosition.notes}
-              </p>
-            </div>
+
+          {activeTab === 'history' && (
+            <>
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-4">
+                <p className="text-sm font-medium text-blue-900">📈 Automatic Price Tracking</p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Prices are automatically fetched every 15 minutes while the app is open.
+                  History builds from when you add the position.
+                </p>
+                {localPosition.purchaseDate && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Purchase date: {new Date(localPosition.purchaseDate).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+              <PositionPriceHistoryChart position={localPosition} />
+            </>
           )}
-          
-          {/* Price Tracking Info */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm font-medium text-blue-900">📈 Automatic Price Tracking</p>
-            <p className="text-xs text-blue-700 mt-1">
-              Prices are automatically fetched every 15 minutes while the app is open. 
-              History builds from when you add the position.
-            </p>
-            {localPosition.purchaseDate && (
-              <p className="text-xs text-gray-500 mt-2">
-                Purchase date: {new Date(localPosition.purchaseDate).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-          
-          {/* Historical Price Chart with Theta Projection */}
-          <div className="mt-6 pt-6 border-t">
-            <PositionPriceHistoryChart position={localPosition} />
-          </div>
+
+          {activeTab === 'compare' && (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">Compare Multiple Positions</h3>
+              <MultiPositionChart positions={allPositions} />
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -248,6 +248,7 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
       {selectedPosition && (
         <PositionDetailModal
           position={selectedPosition}
+          allPositions={positions}
           onClose={() => setSelectedPosition(null)}
         />
       )}
