@@ -300,7 +300,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
 
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <label className="text-xs text-gray-500">Strike</label>
+                          <label className="text-xs text-gray-700 font-medium">Strike</label>
                           <input
                             type="number"
                             value={position.strike}
@@ -309,7 +309,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Expiry (YYYY-MM-DD)</label>
+                          <label className="text-xs text-gray-700 font-medium">Expiry (YYYY-MM-DD)</label>
                           <input
                             type="text"
                             value={position.expiry}
@@ -318,7 +318,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Qty</label>
+                          <label className="text-xs text-gray-700 font-medium">Qty</label>
                           <input
                             type="number"
                             value={position.quantity}
@@ -327,7 +327,7 @@ export default function ScreenshotImport({ onImport, onCancel }: ScreenshotImpor
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Entry $</label>
+                          <label className="text-xs text-gray-700 font-medium">Entry $</label>
                           <input
                             type="number"
                             step="0.01"
