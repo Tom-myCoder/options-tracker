@@ -5,6 +5,7 @@ import AddPositionForm from '@/components/AddPositionForm';
 import PositionsTable from '@/components/PositionsTable';
 import PortfolioSummary from '@/components/PortfolioSummary';
 import ScreenshotImport from '@/components/ScreenshotImport';
+import FileImport from '@/components/FileImport';
 import { OptionPosition } from '@/types/options';
 import { getPositions, savePosition } from '@/lib/storage';
 import { useMarketData } from '@/hooks/useMarketData';
@@ -22,6 +23,7 @@ export default function Home() {
   const [nextRefreshIn, setNextRefreshIn] = useState(AUTO_REFRESH_INTERVAL);
   const [catchUpMessage, setCatchUpMessage] = useState<string | null>(null);
   const [showScreenshotImport, setShowScreenshotImport] = useState(false);
+  const [showFileImport, setShowFileImport] = useState(false);
   const { fetchPrices, refreshPrices, isLoading, lastUpdated, error } = useMarketData();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
@@ -187,6 +189,22 @@ export default function Home() {
     }
   };
 
+  const handleFileImport = async (positions: OptionPosition[]) => {
+    // Save all imported positions
+    positions.forEach(position => {
+      savePosition(position);
+    });
+    setShowFileImport(false);
+    handleRefresh();
+    
+    // Auto-fetch prices for newly imported positions
+    if (positions.length > 0) {
+      const updatedPositions = getPositions();
+      await fetchPrices(updatedPositions);
+      setPositions(getPositions());
+    }
+  };
+
   // Format countdown time
   const formatCountdown = (ms: number) => {
     const minutes = Math.floor(ms / 60000);
@@ -244,6 +262,17 @@ export default function Home() {
                 <span className="text-xs text-red-500 hidden sm:inline">{error}</span>
               )}
               <button
+                onClick={() => setShowFileImport(true)}
+                className="px-3 sm:px-4 py-2 bg-orange-600 text-white text-xs sm:text-sm font-medium rounded-md hover:bg-orange-700 flex items-center gap-1 sm:gap-2"
+                title="Import from File (CSV, Excel, PDF)"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="hidden sm:inline">Import File</span>
+                <span className="sm:hidden">File</span>
+              </button>
+              <button
                 onClick={() => setShowScreenshotImport(true)}
                 className="px-3 sm:px-4 py-2 bg-purple-600 text-white text-xs sm:text-sm font-medium rounded-md hover:bg-purple-700 flex items-center gap-1 sm:gap-2"
                 title="Import from Screenshot"
@@ -253,7 +282,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span className="hidden sm:inline">Import Screenshot</span>
-                <span className="sm:hidden">Import</span>
+                <span className="sm:hidden">Photo</span>
               </button>
               <button
                 onClick={handlePriceRefresh}
@@ -325,6 +354,16 @@ export default function Home() {
           <ScreenshotImport
             onImport={handleScreenshotImport}
             onCancel={() => setShowScreenshotImport(false)}
+          />
+        </div>
+      )}
+
+      {/* File Import Modal */}
+      {showFileImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <FileImport
+            onImport={handleFileImport}
+            onCancel={() => setShowFileImport(false)}
           />
         </div>
       )}
