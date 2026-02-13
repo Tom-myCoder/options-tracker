@@ -184,16 +184,16 @@ export default function Home() {
     <main className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Options Tracker</h1>
-              <p className="text-sm text-gray-500">Track your options portfolio</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Options Tracker</h1>
+              <p className="text-xs sm:text-sm text-gray-500">Track your options portfolio</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
               {/* Catch-up message */}
               {catchUpMessage && (
-                <span className="text-xs text-blue-600 animate-pulse">
+                <span className="text-xs text-blue-600 animate-pulse w-full sm:w-auto text-right">
                   {catchUpMessage}
                 </span>
               )}
@@ -211,10 +211,10 @@ export default function Home() {
                     title={autoRefreshEnabled ? 'Click to pause auto-refresh' : 'Click to enable auto-refresh'}
                   >
                     <span className={`w-2 h-2 rounded-full ${autoRefreshEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
-                    {autoRefreshEnabled ? 'Auto' : 'Paused'}
+                    <span className="hidden sm:inline">{autoRefreshEnabled ? 'Auto' : 'Paused'}</span>
                   </button>
                   {autoRefreshEnabled && !isLoading && !catchUpMessage && (
-                    <span className="text-gray-400">
+                    <span className="text-gray-400 hidden sm:inline">
                       Next: {formatCountdown(nextRefreshIn)}
                     </span>
                   )}
@@ -222,27 +222,30 @@ export default function Home() {
               )}
               
               {lastUpdated && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 hidden sm:inline">
                   Updated: {lastUpdated.toLocaleTimeString()}
                 </span>
               )}
               {error && (
-                <span className="text-xs text-red-500">{error}</span>
+                <span className="text-xs text-red-500 hidden sm:inline">{error}</span>
               )}
               <button
                 onClick={() => setShowScreenshotImport(true)}
-                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 flex items-center gap-2"
+                className="px-3 sm:px-4 py-2 bg-purple-600 text-white text-xs sm:text-sm font-medium rounded-md hover:bg-purple-700 flex items-center gap-1 sm:gap-2"
+                title="Import from Screenshot"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                Import Screenshot
+                <span className="hidden sm:inline">Import Screenshot</span>
+                <span className="sm:hidden">Import</span>
               </button>
               <button
                 onClick={handlePriceRefresh}
                 disabled={isLoading}
-                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-3 sm:px-4 py-2 bg-green-600 text-white text-xs sm:text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 sm:gap-2"
+                title="Refresh Prices"
               >
                 {isLoading ? (
                   <>
@@ -250,14 +253,16 @@ export default function Home() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Updating...
+                    <span className="hidden sm:inline">Updating...</span>
+                    <span className="sm:hidden">...</span>
                   </>
                 ) : (
                   <>
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.000 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Refresh Prices
+                    <span className="hidden sm:inline">Refresh Prices</span>
+                    <span className="sm:hidden">Refresh</span>
                   </>
                 )}
               </button>
