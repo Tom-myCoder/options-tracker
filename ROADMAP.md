@@ -1,138 +1,124 @@
-# Options Tracker - Improvement Roadmap
+# Options Tracker - Roadmap
 
-A living document tracking all planned features and improvements for the Options Tracker app.
+A living document tracking features, improvements, and future plans for the Options Tracker app.
 
----
-
-## Priority Matrix
-
-| Priority | Items |
-|----------|-------|
-| 🔴 High | Critical features for daily use |
-| 🟡 Medium | Important enhancements |
-| 🟢 Low | Nice-to-have features |
+**Live URL:** https://options.ai-capex.com  
+**Repo:** https://github.com/Tom-myCoder/options-tracker
 
 ---
 
-## Feature Requests & Improvements
+## ✅ Completed Features
 
-### Data Entry & UX
-| # | Feature | Description | Priority | Status | Notes |
-|---|---------|-------------|----------|--------|-------|
-| 1 | **Screenshot Auto-Import** | Share a screenshot from broker app → AI extracts ticker, strike, expiry, qty, price, side and auto-fills the form | 🔴 High | ⏳ Planned | Requires OCR + LLM parsing. Could use OpenAI Vision API or local OCR |
-| 2 | **CSV/Excel Import** | Bulk import positions from spreadsheet export | 🟡 Medium | ⏳ Planned | Standardize column mapping |
-| 3 | **Position Templates** | Save common strategies (e.g., "NVDA $150 Put 30 DTE") as templates for quick entry | 🟡 Medium | ⏳ Planned | |
-| 4 | **Broker Auto-Detect** | Remember broker per ticker or auto-suggest based on past entries | 🟢 Low | ⏳ Planned | |
-| 5 | **Duplicate Detection** | Warn if adding a position that already exists | 🟡 Medium | ⏳ Planned | |
-| 6 | **Position Editing** | Allow editing existing positions (not just delete) | 🟡 Medium | ⏳ Planned | |
+### Core Functionality
+| Feature | Description | Completed |
+|---------|-------------|-----------|
+| **Position Management** | Add, edit, delete option positions with full details (ticker, type, strike, expiry, qty, entry price, broker, notes) | ✅ Feb 2026 |
+| **Purchase Date Tracking** | Optional purchase date separate from entry tracking date | ✅ Feb 2026 |
+| **Multi-Broker Support** | Track positions by broker (TD, Schwab, Robinhood, etc.) | ✅ Feb 2026 |
+| **Local Storage** | All data persists in browser localStorage | ✅ Feb 2026 |
+| **CSV/JSON Export/Import** | Backup and restore positions with full price history | ✅ Feb 2026 |
+| **Backward Compatibility** | Data versioning ensures old exports can be imported after app updates | ✅ Feb 2026 |
 
 ### Market Data & Pricing
-| # | Feature | Description | Priority | Status | Notes |
-|---|---------|-------------|----------|--------|-------|
-| 7 | **Yahoo Finance Integration** | Pull live option prices and underlying stock prices | 🔴 High | ⏳ Planned | Free tier available. Need to handle rate limits |
-| 8 | **Real-Time P&L** | Calculate unrealized P&L using live market data | 🔴 High | ⏳ Planned | Depends on #7 |
-| 9 | **Greeks Display** | Show Delta, Gamma, Theta, Vega for each position | 🟡 Medium | ⏳ Planned | Can calculate from Black-Scholes or fetch from API |
-| 10 | **IV Rank/Percentile** | Display implied volatility context | 🟡 Medium | ⏳ Planned | |
-| 11 | **Price Alerts** | Notify when option reaches target price or P&L threshold | 🟡 Medium | ⏳ Planned | Could use browser notifications or Telegram |
-| 12 | **Historical P&L Chart** | Track P&L over time for closed positions | 🟢 Low | ⏳ Planned | |
+| Feature | Description | Completed |
+|---------|-------------|-----------|
+| **Yahoo Finance Integration** | Live option prices and underlying stock prices | ✅ Feb 2026 |
+| **Real-Time P&L** | Unrealized P&L calculation using live market data | ✅ Feb 2026 |
+| **Auto-Refresh** | Automatic price updates every 15 minutes | ✅ Feb 2026 |
+| **Catch-Up on Wake** | Detects when you return after device sleep and refreshes prices | ✅ Feb 2026 |
+| **Price History Tracking** | Historical price snapshots with Theta decay projections | ✅ Feb 2026 |
 
 ### Visualization & Analysis
-| # | Feature | Description | Priority | Status | Notes |
-|---|---------|-------------|----------|--------|-------|
-| 13 | **Position Detail Modal** | Click a row to see full details + risk graph | 🔴 High | ⏳ Planned | Show profit/loss diagram |
-| 14 | **Risk Graph / Payoff Chart** | Visualize max profit/loss, breakeven points | 🔴 High | ⏳ Planned | Key for deciding when to close |
-| 15 | **Time Decay Visualization** | Show how Theta affects position value over time | 🟡 Medium | ⏳ Planned | |
-| 16 | **Portfolio Heatmap** | Visual risk exposure by ticker/sector | 🟢 Low | ⏳ Planned | |
-| 17 | **Correlation Matrix** | Show how positions correlate with each other | 🟢 Low | ⏳ Planned | |
+| Feature | Description | Completed |
+|---------|-------------|-----------|
+| **Position Detail Modal** | Click any position to see full details | ✅ Feb 2026 |
+| **Risk Graph / Payoff Chart** | Visual P&L curve with break-even analysis and price simulation slider | ✅ Feb 2026 |
+| **Historical Price Chart** | Track option price history from purchase date with Theta projection | ✅ Feb 2026 |
+| **Portfolio Summary Cards** | Total positions, debits/credits, net cash flow, exposure, broker breakdown | ✅ Feb 2026 |
+| **DTE Indicators** | Days-to-expiry with color coding (red <7 days, yellow <30) | ✅ Feb 2026 |
 
-### Position Management
-| # | Feature | Description | Priority | Status | Notes |
-|---|---------|-------------|----------|--------|-------|
-| 18 | **Close Position Flow** | Record closing price, date, realized P&L → moves to "Closed Positions" | 🔴 High | ⏳ Planned | Separate view for closed trades |
-| 19 | **Partial Close** | Close part of a position (e.g., 2 of 5 contracts) | 🟡 Medium | ⏳ Planned | |
-| 20 | **Roll Position** | Record rolling to new strike/expiry as a linked sequence | 🟡 Medium | ⏳ Planned | Track adjustment history |
-| 21 | **Assignment Tracking** | Record if put was assigned, cost basis of resulting shares | 🟡 Medium | ⏳ Planned | Important for Sell Put users |
-| 22 | **Tax Lot Tracking** | Track holding periods for tax reporting | 🟢 Low | ⏳ Planned | Export 1099-style summary |
+### AI-Powered Features
+| Feature | Description | Completed |
+|---------|-------------|-----------|
+| **Screenshot Import** | Upload brokerage screenshots → AI extracts positions using OpenAI Vision API | ✅ Feb 2026 |
+| **Smart Entry Price Calculation** | When entry price not shown, calculates from current price + % change | ✅ Feb 2026 |
+| **Broker Auto-Detection** | Recognizes broker from screenshot UI | ✅ Feb 2026 |
+| **Multi-Broker Support** | Handles various screenshot formats (Schwab, Robinhood, etc.) | ✅ Feb 2026 |
 
-### Reporting & Export
-| # | Feature | Description | Priority | Status | Notes |
-|---|---------|-------------|----------|--------|-------|
-| 23 | **Monthly/Yearly Summary** | Aggregate P&L by month/year | 🟡 Medium | ⏳ Planned | |
-| 24 | **Tax Report Export** | Export closed trades for tax software | 🟢 Low | ⏳ Planned | CSV/Excel format |
-| 25 | **Performance Metrics** | Win rate, avg profit/loss, max drawdown, Sharpe ratio | 🟡 Medium | ⏳ Planned | |
-| 26 | **Strategy Tagging** | Tag positions by strategy (Wheel, CSP, CC, Spread, etc.) | 🟡 Medium | ⏳ Planned | Filter/summarize by strategy |
-
-### Technical Improvements
-| # | Feature | Description | Priority | Status | Notes |
-|---|---------|-------------|----------|--------|-------|
-| 27 | **Responsive Table** | Better use of large screens, collapsible columns on mobile | 🔴 High | ✅ Done | Wider on 2xl screens |
-| 28 | **Auto-Fill Prevention** | Eliminate browser autofill leftovers after add | 🔴 High | ✅ Done | Form remount + unique names |
-| 29 | **Dark Mode** | Toggle between light/dark themes | 🟢 Low | ⏳ Planned | |
-| 30 | **Data Sync/Backup** | Export/import all data, cloud backup option | 🟡 Medium | ⏳ Planned | JSON export + optional cloud |
-| 31 | **PWA Support** | Install as mobile app, work offline | 🟢 Low | ⏳ Planned | |
-| 32 | **Multi-Account** | Track positions across multiple accounts separately | 🟡 Medium | ⏳ Planned | Account selector + aggregation |
+### UX Improvements
+| Feature | Description | Completed |
+|---------|-------------|-----------|
+| **Mobile Responsive** | Fully responsive design, works on phone/desktop | ✅ Feb 2026 |
+| **Edit Position** | Modify existing positions without re-entering | ✅ Feb 2026 |
+| **Clear Form Button** | Reset form fields easily | ✅ Feb 2026 |
+| **Autofill Prevention** | Aggressive anti-autofill measures for clean data entry | ✅ Feb 2026 |
 
 ---
 
-## Screenshot Auto-Import - Technical Plan
+## 🚧 In Progress / Planned
 
-This is the #1 requested feature. Here's how to implement:
+### High Priority
+| # | Feature | Description | ETA |
+|---|---------|-------------|-----|
+| 1 | **Position Close Flow** | Record closing price, date, realized P&L → moves to "Closed Positions" view | TBD |
+| 2 | **Greeks Dashboard** | Portfolio-level Delta, Theta, Gamma, Vega exposure | TBD |
+| 3 | **P&L Heatmap** | 2D grid showing P&L at different price/time scenarios | TBD |
+| 4 | **Price Alerts** | Browser notifications when option hits target price or P&L threshold | TBD |
 
-### Option A: OpenAI Vision API (Recommended)
-**Pros:** Accurate, handles various broker apps, fast  
-**Cons:** Requires API key, small cost per image (~$0.01-0.02)
+### Medium Priority
+| # | Feature | Description | ETA |
+|---|---------|-------------|-----|
+| 5 | **Position Sizer** | Calculate optimal contract count based on risk % and account size | TBD |
+| 6 | **Rolling Suggestions** | Auto-flag positions approaching expiry or deep ITM/OTM for rolling | TBD |
+| 7 | **Strategy Tagging** | Tag positions (Wheel, CSP, CC, Spread, etc.) and filter by strategy | TBD |
+| 8 | **Partial Close** | Close part of a position (e.g., 2 of 5 contracts) | TBD |
+| 9 | **Assignment Tracking** | Record put assignments, cost basis of resulting shares | TBD |
+| 10 | **Performance Metrics** | Win rate, avg profit/loss, max drawdown, Sharpe ratio | TBD |
 
-**Flow:**
-1. User pastes or uploads screenshot
-2. Send to GPT-4 Vision with prompt:
-   ```
-   Extract: Ticker, Option Type (Call/Put), Strike Price, 
-   Expiry Date, Quantity, Entry Price, Side (Buy/Sell), Broker
-   Return as JSON.
-   ```
-3. Parse JSON response
-4. Pre-fill form fields
-5. User reviews and confirms
-
-### Option B: Local OCR (Tesseract.js)
-**Pros:** Free, private, no API key  
-**Cons:** Less accurate, requires clean screenshots
-
-### Option C: Broker API Integration
-**Pros:** Direct data, no manual entry  
-**Cons:** Requires OAuth, each broker different (TD, Robinhood, etc.)
-
-**Recommended approach:** Start with Option A (OpenAI Vision) for MVP, add Option C later for major brokers.
-
----
-
-## Risk Graph / Payoff Chart - Technical Plan
-
-Key feature for deciding when to close positions.
-
-### What to Show:
-- **X-axis:** Underlying stock price at expiry
-- **Y-axis:** Profit/Loss
-- **Lines:** Current P&L (solid), Expiry P&L (dashed)
-- **Key points:** Max profit, Max loss, Breakeven(s), Current stock price
-
-### Implementation:
-1. Calculate payoff at various stock prices (e.g., +/- 30% of current)
-2. For Sell Put: profit = premium received below strike
-3. Use Chart.js or Recharts for rendering
-4. Show time value decay overlay
+### Low Priority / Nice-to-Have
+| # | Feature | Description | ETA |
+|---|---------|-------------|-----|
+| 11 | **Dark Mode** | Toggle between light/dark themes | TBD |
+| 12 | **Earnings Calendar** | Show upcoming earnings for tickers in portfolio | TBD |
+| 13 | **Volatility Analyzer** | Compare implied vs historical volatility | TBD |
+| 14 | **PWA Support** | Install as mobile app, work offline | TBD |
+| 15 | **Tax Report Export** | Export closed trades for tax software (1099-style) | TBD |
+| 16 | **Correlation Matrix** | Show how positions correlate with each other | TBD |
+| 17 | **Portfolio Heatmap** | Visual risk exposure by ticker/sector | TBD |
+| 18 | **Multi-Account** | Track positions across multiple accounts separately | TBD |
 
 ---
 
-## Next Steps
+## 🎯 Next Up (Recommended Order)
 
-1. ✅ Fix autofill issue (DONE)
-2. ✅ Wider table on large screens (DONE)  
-3. 🔄 Implement Yahoo Finance price fetch
-4. 🔄 Add Position Detail Modal with Risk Graph
-5. 🔄 Build Screenshot Import feature
+1. **Position Close Flow** - Essential for tracking realized P&L
+2. **Greeks Dashboard** - Helpful for risk management
+3. **Price Alerts** - Proactive notifications for decision-making
 
 ---
 
-*Last updated: 2026-02-10*  
+## 🛠 Technical Architecture
+
+### Current Stack
+- **Frontend:** Next.js 16, React 19, TypeScript
+- **Styling:** Tailwind CSS
+- **Charts:** Recharts
+- **Data:** localStorage (client-side only)
+- **Market Data:** Yahoo Finance API (yahoo-finance2)
+- **AI/OCR:** OpenAI GPT-4 Vision API (screenshot import)
+
+### Deployment
+- **Platform:** Vercel
+- **Domain:** options.ai-capex.com
+- **CI/CD:** Auto-deploy on git push to main
+
+---
+
+## 📊 Usage Stats (If Available)
+
+*Track usage metrics here if analytics are added*
+
+---
+
+*Last updated: 2026-02-13*  
 *Maintained by: Tom (AI Assistant)*
