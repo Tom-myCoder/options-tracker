@@ -451,7 +451,10 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
           }
         }
 
-        setExtractedPositionsOpen(open);
+        // Filter out fully-closed open positions (remaining === 0 after pairing)
+        const stillOpen = open.filter(o => (o as any).remaining > 0);
+        
+        setExtractedPositionsOpen(stillOpen);
         setExtractedPositionsClosed(closed);
         setBrokerDetected(positions[0]?.broker || null);
       }
