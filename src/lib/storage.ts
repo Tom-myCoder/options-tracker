@@ -375,7 +375,22 @@ export const getClosedPositions = (): ClosedPosition[] => {
   const stored = localStorage.getItem(CLOSED_POSITIONS_KEY);
   if (!stored) return [];
   try {
-    return JSON.parse(stored);
+    const parsed: ClosedPosition[] = JSON.parse(stored);
+    // Deduplicate on read by stable signature
+    const sig = (p: ClosedPosition) => `${p.ticker}|${p.optionType}|${Math.round(p.strike*100)/100}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}`;
+    const seen = new Set<string>();
+    const unique: ClosedPosition[] = [];
+    for (const p of parsed) {
+      const s = sig(p);
+      if (seen.has(s)) continue;
+      seen.add(s);
+      unique.push(p);
+    }
+    if (unique.length !== parsed.length) {
+      // overwrite storage with deduped list
+      localStorage.setItem(CLOSED_POSITIONS_KEY, JSON.stringify(unique));
+    }
+    return unique;
   } catch (e) {
     console.error('Error parsing closed positions:', e);
     return [];
