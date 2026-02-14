@@ -206,7 +206,11 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                       )}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-900">
-                      {position.purchaseDate ? new Date(position.purchaseDate).toLocaleDateString() : '-'}
+                      {position.purchaseDate 
+                        ? new Date(position.purchaseDate).toLocaleDateString() 
+                        : position.entryDate 
+                          ? new Date(position.entryDate).toLocaleDateString() 
+                          : '-'}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {position.broker || '-'}

@@ -53,21 +53,25 @@ export default function MultiPositionChart({ positions }: MultiPositionChartProp
       '1Y': now - 365 * 24 * 60 * 60 * 1000,
       'ALL': 0,
     };
-    const cutoff = cutoffs[timeFrame];
+    const timeFrameCutoff = cutoffs[timeFrame];
 
     // Collect all timestamps from all positions
+    // Only include data from entry date onwards (we can't track prices before position was opened)
     const allTimestamps = new Set<number>();
     selectedPositions.forEach(pos => {
-      pos.priceHistory?.forEach(h => {
-        if (h.timestamp >= cutoff) {
-          allTimestamps.add(h.timestamp);
-        }
-      });
-      // Add entry point
       const entryTime = pos.purchaseDate 
         ? new Date(pos.purchaseDate).getTime()
         : new Date(pos.entryDate).getTime();
-      if (entryTime >= cutoff) {
+      
+      // Only add timestamps from entry date onwards, and within the selected time frame
+      pos.priceHistory?.forEach(h => {
+        if (h.timestamp >= entryTime && h.timestamp >= timeFrameCutoff) {
+          allTimestamps.add(h.timestamp);
+        }
+      });
+      
+      // Always add entry point if within time frame
+      if (entryTime >= timeFrameCutoff) {
         allTimestamps.add(entryTime);
       }
     });
@@ -85,6 +89,15 @@ export default function MultiPositionChart({ positions }: MultiPositionChartProp
       selectedPositions.forEach(pos => {
         const key = `${pos.ticker}-${pos.strike}-${pos.optionType}`;
         
+        const entryTime = pos.purchaseDate 
+          ? new Date(pos.purchaseDate).getTime()
+          : new Date(pos.entryDate).getTime();
+        
+        // Skip if this timestamp is before position entry date
+        if (ts < entryTime - 24 * 60 * 60 * 1000) {
+          return; // Don't include this position in this data point
+        }
+        
         // Find price at this timestamp
         const historyEntry = pos.priceHistory?.find(h => 
           Math.abs(h.timestamp - ts) < 24 * 60 * 60 * 1000 // Within 1 day
@@ -93,7 +106,7 @@ export default function MultiPositionChart({ positions }: MultiPositionChartProp
         let value: number;
         if (historyEntry) {
           value = historyEntry.price;
-        } else if (ts <= new Date(pos.entryDate).getTime() + 24 * 60 * 60 * 1000) {
+        } else if (ts <= entryTime + 24 * 60 * 60 * 1000) {
           // At or near entry, use entry price
           value = pos.entryPrice;
         } else {
