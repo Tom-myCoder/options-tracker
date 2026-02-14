@@ -34,7 +34,6 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [extractedPositionsOpen, setExtractedPositionsOpen] = useState<ExtractedPosition[]>([]);
   const [extractedPositionsClosed, setExtractedPositionsClosed] = useState<ExtractedPosition[]>([]);
-  const [showClosedReview, setShowClosedReview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brokerDetected, setBrokerDetected] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -700,190 +699,213 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
         {/* Extracted Positions */}
         {(extractedPositionsOpen.length > 0 || extractedPositionsClosed.length > 0) && (
-          <div>
+          <div className="space-y-4">
             {brokerDetected && (
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-gray-600">
                 Broker detected: <span className="font-medium">{brokerDetected}</span>
               </p>
             )}
 
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">
-                  {extractedPositionsOpen.length} open, {extractedPositionsClosed.length} closed
-                </span>
-                {(selectedOpenCount > 0 || selectedClosedCount > 0) && (
-                  <span className="text-xs text-blue-600">
-                    ({selectedOpenCount} open + {selectedClosedCount} closed selected)
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
+            {/* Summary */}
+            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+              <span className="text-sm font-medium text-gray-700">
+                {selectedOpenCount} of {extractedPositionsOpen.length} open, {selectedClosedCount} of {extractedPositionsClosed.length} closed selected
+              </span>
+              <div className="flex gap-2">
                 <button
                   onClick={() => {
                     setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: true })));
                     setExtractedPositionsClosed(prev => prev.map(p => ({ ...p, selected: true })));
                   }}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                 >
                   Select All
                 </button>
+                <span className="text-gray-300">|</span>
                 <button
                   onClick={() => {
                     setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: false })));
                     setExtractedPositionsClosed(prev => prev.map(p => ({ ...p, selected: false })));
                   }}
-                  className="text-xs text-gray-600 hover:text-gray-800"
+                  className="text-xs text-gray-600 hover:text-gray-800 font-medium"
                 >
                   Clear All
-                </button>
-                <button
-                  onClick={() => setShowClosedReview(prev => !prev)}
-                  className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700 hover:bg-gray-200"
-                >
-                  {showClosedReview ? 'Hide Closed' : 'Show Closed'}
                 </button>
               </div>
             </div>
 
-            {/* Open positions (pre-selected) */}
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {extractedPositionsOpen.map((position, index) => (
-                <div
-                  key={position._id || index}
-                  className={`border rounded-lg p-3 ${position.selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={position.selected}
-                      onChange={() => toggleSelectionOpen(index)}
-                      className="mt-1 h-4 w-4 text-blue-600 rounded"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-bold text-gray-900">{position.ticker}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${position.optionType === 'call' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {position.optionType.toUpperCase()}
-                        </span>
-                        <span className="text-xs ml-2 text-gray-500">{position.transCode || ''}</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <label className="text-xs text-gray-700 font-medium">Strike</label>
-                          <input
-                            type="number"
-                            value={position.strike}
-                            onChange={(e) => updateOpenPosition(index, 'strike', parseFloat(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-sm text-black"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-700 font-medium">Expiry</label>
-                          <input
-                            type="text"
-                            value={position.expiry}
-                            onChange={(e) => updateOpenPosition(index, 'expiry', e.target.value)}
-                            className="w-full px-2 py-1 border rounded text-sm text-black"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-700 font-medium">Qty</label>
-                          <input
-                            type="number"
-                            value={position.quantity}
-                            onChange={(e) => updateOpenPosition(index, 'quantity', parseInt(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-sm text-black"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-700 font-medium">Entry $</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={position.entryPrice}
-                            onChange={(e) => updateOpenPosition(index, 'entryPrice', parseFloat(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-sm text-black"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-700 font-medium">Entry Date</label>
-                          <input
-                            type="date"
-                            value={position.entryDate || ''}
-                            onChange={(e) => updateOpenPosition(index, 'entryDate', e.target.value)}
-                            className="w-full px-2 py-1 border rounded text-sm text-black"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 mt-2">
-                        <select
-                          value={position.side}
-                          onChange={(e) => updateOpenPosition(index, 'side', e.target.value)}
-                          className="text-xs px-2 py-1 border rounded"
-                        >
-                          <option value="buy">Buy</option>
-                          <option value="sell">Sell</option>
-                        </select>
-                        <select
-                          value={position.optionType}
-                          onChange={(e) => updateOpenPosition(index, 'optionType', e.target.value)}
-                          className="text-xs px-2 py-1 border rounded"
-                        >
-                          <option value="call">Call</option>
-                          <option value="put">Put</option>
-                        </select>
-                      </div>
-                    </div>
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Open Positions Section */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-blue-50 px-4 py-2 border-b flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-blue-900">
+                    Open Positions ({extractedPositionsOpen.length})
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: true })))}
+                      className="text-xs text-blue-700 hover:text-blue-900"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-blue-300">|</span>
+                    <button
+                      onClick={() => setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: false })))}
+                      className="text-xs text-blue-700 hover:text-blue-900"
+                    >
+                      Clear
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Closed / Assigned review */}
-            {showClosedReview && (
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold mb-2">Closed / Assigned ({extractedPositionsClosed.length})</h3>
-                <div className="space-y-3 max-h-48 overflow-y-auto">
-                  {extractedPositionsClosed.map((position, index) => (
-                    <div key={position._id || index} className={`border rounded-lg p-3 ${position.selected ? 'border-gray-400 bg-gray-50' : 'border-gray-100'}`}>
+                <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                  {extractedPositionsOpen.map((position, index) => (
+                    <div
+                      key={position._id || index}
+                      className={`border rounded-lg p-3 ${position.selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+                    >
                       <div className="flex items-start gap-3">
-                        <input type="checkbox" checked={position.selected} onChange={() => toggleSelectionClosed(index)} className="mt-1 h-4 w-4 text-gray-600 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium">{position.ticker}</span>
+                        <input
+                          type="checkbox"
+                          checked={position.selected}
+                          onChange={() => toggleSelectionOpen(index)}
+                          className="mt-1 h-4 w-4 text-blue-600 rounded"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-bold text-gray-900">{position.ticker}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${position.optionType === 'call' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {position.optionType.toUpperCase()}
+                            </span>
                             <span className="text-xs text-gray-500">{position.transCode || ''}</span>
-                            {position.realizedPnl != null && (
-                              <span className="ml-2 text-xs text-green-700">Realized: ${position.realizedPnl.toFixed(2)}</span>
-                            )}
                           </div>
-                          <div className="text-xs text-gray-600">{position.strike} • {position.expiry} • Qty: {position.quantity} • Entry: ${position.entryPrice}</div>
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
+                            <div>
+                              <label className="text-xs text-gray-500">Strike</label>
+                              <input
+                                type="number"
+                                value={position.strike}
+                                onChange={(e) => updateOpenPosition(index, 'strike', parseFloat(e.target.value))}
+                                className="w-full px-2 py-1 border rounded text-sm text-black"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Expiry</label>
+                              <input
+                                type="text"
+                                value={position.expiry}
+                                onChange={(e) => updateOpenPosition(index, 'expiry', e.target.value)}
+                                className="w-full px-2 py-1 border rounded text-sm text-black"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Qty</label>
+                              <input
+                                type="number"
+                                value={position.quantity}
+                                onChange={(e) => updateOpenPosition(index, 'quantity', parseInt(e.target.value))}
+                                className="w-full px-2 py-1 border rounded text-sm text-black"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Entry $</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={position.entryPrice}
+                                onChange={(e) => updateOpenPosition(index, 'entryPrice', parseFloat(e.target.value))}
+                                className="w-full px-2 py-1 border rounded text-sm text-black"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   ))}
-
-                  <div className="mt-3 flex gap-3">
-                    <button onClick={() => setShowClosedReview(false)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-300">Hide Closed</button>
-                  </div>
+                  {extractedPositionsOpen.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">No open positions detected</p>
+                  )}
                 </div>
               </div>
-            )}
 
-            <div className="mt-6 flex gap-3">
+              {/* Closed Positions Section */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-4 py-2 border-b flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Closed / Assigned ({extractedPositionsClosed.length})
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setExtractedPositionsClosed(prev => prev.map(p => ({ ...p, selected: true })))}
+                      className="text-xs text-gray-700 hover:text-gray-900"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      onClick={() => setExtractedPositionsClosed(prev => prev.map(p => ({ ...p, selected: false })))}
+                      className="text-xs text-gray-700 hover:text-gray-900"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                  {extractedPositionsClosed.map((position, index) => (
+                    <div 
+                      key={position._id || index} 
+                      className={`border rounded-lg p-3 ${position.selected ? 'border-gray-500 bg-gray-50' : 'border-gray-200'}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input 
+                          type="checkbox" 
+                          checked={position.selected} 
+                          onChange={() => toggleSelectionClosed(index)} 
+                          className="mt-1 h-4 w-4 text-gray-600 rounded" 
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-gray-900">{position.ticker}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${position.optionType === 'call' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {position.optionType.toUpperCase()}
+                            </span>
+                            <span className="text-xs text-gray-500">{position.transCode || ''}</span>
+                          </div>
+                          <div className="text-xs text-gray-600 space-y-0.5">
+                            <div>{position.strike} • {position.expiry}</div>
+                            <div>Qty: {position.quantity} • Entry: ${position.entryPrice}</div>
+                            {position.realizedPnl != null && (
+                              <div className={`font-medium ${position.realizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                Realized P&L: {position.realizedPnl >= 0 ? '+' : ''}${position.realizedPnl.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {extractedPositionsClosed.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">No closed positions detected</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Import Button */}
+            <div className="flex gap-3 pt-2">
               <button
                 onClick={handleImport}
                 disabled={totalSelectedCount === 0}
                 className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {totalSelectedCount === 0 ? 'Select positions to import' : 
-                  `Import ${selectedOpenCount > 0 ? `${selectedOpenCount} open` : ''}${selectedOpenCount > 0 && selectedClosedCount > 0 ? ' + ' : ''}${selectedClosedCount > 0 ? `${selectedClosedCount} closed` : ''}`}
+                {totalSelectedCount === 0 
+                  ? 'Select positions to import' 
+                  : `Import ${selectedOpenCount > 0 ? `${selectedOpenCount} open` : ''}${selectedOpenCount > 0 && selectedClosedCount > 0 ? ' + ' : ''}${selectedClosedCount > 0 ? `${selectedClosedCount} closed` : ''}`
+                }
               </button>
               <button
                 onClick={onCancel}
-                className="px-4 py-3 bg-gray-200 text-gray-800 rounded-md font-medium hover:bg-gray-300"
+                className="px-6 py-3 bg-gray-200 text-gray-800 rounded-md font-medium hover:bg-gray-300"
               >
                 Cancel
               </button>

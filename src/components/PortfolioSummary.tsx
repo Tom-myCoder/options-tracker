@@ -167,15 +167,29 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     }
   };
 
-  const handleClearAll = () => {
+  const handleClearOpenPositions = () => {
     if (positions.length === 0) {
-      alert('No positions to clear.');
+      alert('No open positions to clear.');
       return;
     }
-    const ok = window.confirm(`Are you sure you want to clear all ${positions.length} position${positions.length !== 1 ? 's' : ''}? This cannot be undone.`);
+    const ok = window.confirm(`Are you sure you want to clear all ${positions.length} open position${positions.length !== 1 ? 's' : ''}? This cannot be undone.`);
     if (!ok) return;
     clearAllPositions();
-    alert('All positions have been cleared.');
+    alert('All open positions have been cleared.');
+    window.location.reload();
+  };
+
+  const handleClearAll = () => {
+    const totalItems = positions.length + closedPositions.length;
+    if (totalItems === 0) {
+      alert('Nothing to clear.');
+      return;
+    }
+    const ok = window.confirm(`Are you sure you want to clear everything?\n\n• ${positions.length} open position${positions.length !== 1 ? 's' : ''}\n• ${closedPositions.length} closed position${closedPositions.length !== 1 ? 's' : ''}\n\nThis cannot be undone.`);
+    if (!ok) return;
+    clearAllPositions();
+    clearClosedPositions();
+    alert('All positions and history have been cleared.');
     window.location.reload();
   };
 
@@ -261,9 +275,16 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
             />
           </label>
           <button 
+            onClick={handleClearOpenPositions}
+            className="px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+            title="Clear only open positions"
+          >
+            Clear Open
+          </button>
+          <button 
             onClick={handleClearAll}
             className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
-            title="Clear all positions from localStorage"
+            title="Clear all positions and history"
           >
             Clear All
           </button>
