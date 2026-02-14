@@ -417,9 +417,22 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
           }
         }
 
+        // Aggregate identical open positions (same ticker, type, strike, expiry, side, entryPrice)
+        const aggregatedOpen: ExtractedPosition[] = [];
+        const openAggregationMap: Record<string, ExtractedPosition> = {};
+        for (const o of open) {
+          const aggKey = `${o.ticker}|${o.optionType}|${o.strike}|${o.expiry}|${o.side}|${o.entryPrice}|${o.entryDate || ''}`;
+          if (openAggregationMap[aggKey]) {
+            openAggregationMap[aggKey].quantity += o.quantity;
+          } else {
+            openAggregationMap[aggKey] = { ...o };
+            aggregatedOpen.push(openAggregationMap[aggKey]);
+          }
+        }
+
         // Attempt pairing closed items with opens to compute realized P&L
         const opensByKey: Record<string, ExtractedPosition[]> = {};
-        for (const o of open) {
+        for (const o of aggregatedOpen) {
           const key = `${o.ticker}|${o.optionType}|${o.strike}|${o.expiry}`;
           if (!opensByKey[key]) opensByKey[key] = [];
           // track remainingQuantity for pairing
@@ -437,14 +450,19 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
             const matchQty = Math.min(oRemaining, remainingToMatch);
             if (matchQty <= 0) continue;
 
+            // Always track the pairing (even without price for P&L)
+            c.pairedWith = o._id || null;
+            (o as any).remaining = oRemaining - matchQty;
+            remainingToMatch -= matchQty;
+
             // Compute realized P&L per contract: (open.entryPrice - close.entryPrice) * 100
-            if (o.entryPrice && c.entryPrice) {
-              const pnlPer = (o.entryPrice - c.entryPrice) * 100;
+            // For assignments (OASGN), close.entryPrice is often 0 (assignment at strike)
+            // For BTC, close.entryPrice is the buyback price
+            if (o.entryPrice) {
+              const closePrice = c.entryPrice || 0;
+              const pnlPer = (o.entryPrice - closePrice) * 100;
               const pnl = pnlPer * matchQty;
               c.realizedPnl = (c.realizedPnl || 0) + pnl;
-              c.pairedWith = o._id || null;
-              (o as any).remaining = oRemaining - matchQty;
-              remainingToMatch -= matchQty;
             }
 
             if (remainingToMatch <= 0) break;
@@ -452,7 +470,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         }
 
         // Filter out fully-closed open positions (remaining === 0 after pairing)
-        const stillOpen = open.filter(o => (o as any).remaining > 0);
+        const stillOpen = aggregatedOpen.filter(o => (o as any).remaining > 0);
         
         setExtractedPositionsOpen(stillOpen);
         setExtractedPositionsClosed(closed);
