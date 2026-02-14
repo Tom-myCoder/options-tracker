@@ -397,14 +397,25 @@ export const saveClosedPosition = (position: ClosedPosition): void => {
 export const saveClosedPositions = (newPositions: ClosedPosition[]): void => {
   const existing = getClosedPositions();
   const merged = [...existing];
+
+  // Helper to compute a stable signature for deduplication
+  const sig = (p: ClosedPosition) => {
+    const rp = Math.round((p.realizedPnl || 0) * 100); // in cents
+    return `${p.ticker}|${p.optionType}|${p.strike}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}|${rp}`;
+  };
+
+  const existingSigs = new Set(existing.map(e => sig(e)));
+
   for (const pos of newPositions) {
-    const index = merged.findIndex(p => p.id === pos.id);
-    if (index >= 0) {
-      merged[index] = pos;
-    } else {
-      merged.push(pos);
+    const s = sig(pos);
+    if (existingSigs.has(s)) {
+      // duplicate — skip
+      continue;
     }
+    merged.push(pos);
+    existingSigs.add(s);
   }
+
   localStorage.setItem(CLOSED_POSITIONS_KEY, JSON.stringify(merged));
 };
 
