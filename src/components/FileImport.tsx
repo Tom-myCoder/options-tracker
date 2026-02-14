@@ -439,67 +439,82 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
           opensByKey[key].push(o);
         }
 
+        const closedMatches: any[] = [];
         for (const c of closed) {
           const key = `${c.ticker}|${c.optionType}|${c.strike}|${c.expiry}`;
           const pool = opensByKey[key] || [];
           let remainingToMatch = c.quantity;
+          let firstPairedId: string | null = null;
+
           for (const o of pool) {
             const oRemaining = (o as any).remaining || 0;
             if (oRemaining <= 0) continue;
             const matchQty = Math.min(oRemaining, remainingToMatch);
             if (matchQty <= 0) continue;
 
-            // Always track the pairing (even without price for P&L)
-            c.pairedWith = o._id || null;
+            // Compute realized P&L per contract: (open.entryPrice - close.entryPrice) * 100
+            const entryPriceFromOpen = o.entryPrice || 0;
+            const closePrice = c.entryPrice || 0; // may be 0 for assignment
+            const pnlPer = entryPriceFromOpen ? (entryPriceFromOpen - closePrice) * 100 : 0;
+            const pnl = pnlPer * matchQty;
+
+            closedMatches.push({
+              id: generateId(),
+              ticker: c.ticker.toUpperCase(),
+              optionType: c.optionType,
+              side: c.side,
+              strike: c.strike,
+              expiry: c.expiry,
+              quantity: matchQty,
+              entryPrice: entryPriceFromOpen,
+              closePrice,
+              entryDate: o.entryDate || c.entryDate || new Date().toISOString().split('T')[0],
+              closeDate: c.entryDate || new Date().toISOString().split('T')[0],
+              realizedPnl: pnl,
+              broker: c.broker || brokerDetected || undefined,
+              notes: `trans:${c.transCode || ''}; pairedWith:${o._id || ''}`,
+              importedFrom: 'CSV Auto-import',
+              importDate: new Date().toISOString()
+            });
+
+            if (!firstPairedId) firstPairedId = o._id || null;
+            c.pairedWith = firstPairedId;
+
             (o as any).remaining = oRemaining - matchQty;
             remainingToMatch -= matchQty;
 
-            // Compute realized P&L per contract: (open.entryPrice - close.entryPrice) * 100
-            // For assignments (OASGN), close.entryPrice is often 0 (assignment at strike)
-            // For BTC, close.entryPrice is the buyback price
-            if (o.entryPrice) {
-              const closePrice = c.entryPrice || 0;
-              const pnlPer = (o.entryPrice - closePrice) * 100;
-              const pnl = pnlPer * matchQty;
-              c.realizedPnl = (c.realizedPnl || 0) + pnl;
-            }
-
             if (remainingToMatch <= 0) break;
+          }
+
+          if (remainingToMatch > 0) {
+            // leftover closed quantity without matching open
+            closedMatches.push({
+              id: generateId(),
+              ticker: c.ticker.toUpperCase(),
+              optionType: c.optionType,
+              side: c.side,
+              strike: c.strike,
+              expiry: c.expiry,
+              quantity: remainingToMatch,
+              entryPrice: c.entryPrice || 0,
+              closePrice: c.entryPrice || 0,
+              entryDate: c.entryDate || new Date().toISOString().split('T')[0],
+              closeDate: c.entryDate || new Date().toISOString().split('T')[0],
+              realizedPnl: c.realizedPnl || 0,
+              broker: c.broker || brokerDetected || undefined,
+              notes: `trans:${c.transCode || ''}; paired:partial`,
+              importedFrom: 'CSV Auto-import',
+              importDate: new Date().toISOString()
+            });
           }
         }
 
         // Filter out fully-closed open positions (remaining === 0 after pairing)
         const stillOpen = aggregatedOpen.filter(o => (o as any).remaining > 0);
-        
-        // Auto-save closed positions to history (for P&L tracking)
-        // These are trades that have been closed/assigned - save them even if not imported as positions
-        const closedForHistory = closed.map(c => {
-          // Try to locate the matched open position (if any) to get original entry price/date
-          const matchedOpen = extractedPositionsOpen.find(o => o._id && o._id === c.pairedWith) as ExtractedPosition | undefined;
-          const entryPriceFromOpen = matchedOpen ? matchedOpen.entryPrice : (c.entryPrice || 0);
-          const entryDateFromOpen = matchedOpen ? (matchedOpen.entryDate || (c.entryDate || new Date().toISOString().split('T')[0])) : (c.entryDate || new Date().toISOString().split('T')[0]);
 
-          return {
-            id: generateId(),
-            ticker: c.ticker.toUpperCase(),
-            optionType: c.optionType,
-            side: c.side,
-            strike: c.strike,
-            expiry: c.expiry,
-            quantity: c.quantity,
-            entryPrice: entryPriceFromOpen,
-            closePrice: c.entryPrice || 0,
-            entryDate: entryDateFromOpen,
-            closeDate: c.entryDate || new Date().toISOString().split('T')[0],
-            realizedPnl: c.realizedPnl || 0,
-            broker: c.broker || brokerDetected || undefined,
-            notes: `trans:${c.transCode || ''}; paired:${c.pairedWith ? 'yes' : 'no'}`,
-            importedFrom: 'CSV Auto-import',
-            importDate: new Date().toISOString()
-          };
-        });
-        saveClosedPositions(closedForHistory);
-        
+        // Auto-save closed matches to history (for P&L tracking)
+        if (closedMatches.length > 0) saveClosedPositions(closedMatches);
+
         setExtractedPositionsOpen(stillOpen);
         setExtractedPositionsClosed(closed);
         setBrokerDetected(positions[0]?.broker || null);
