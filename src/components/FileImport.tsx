@@ -11,6 +11,7 @@ interface FileImportProps {
 }
 
 interface ExtractedPosition {
+  _id?: string;
   ticker: string;
   optionType: 'call' | 'put';
   side: 'buy' | 'sell';
@@ -18,15 +19,21 @@ interface ExtractedPosition {
   expiry: string;
   quantity: number;
   entryPrice: number;
+  transCode?: string;
+  amount?: number;
   broker?: string;
   selected?: boolean;
+  realizedPnl?: number | null;
+  pairedWith?: string | null;
   rawData?: Record<string, any>;
 }
 
 export default function FileImport({ onImport, onCancel }: FileImportProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [extractedPositions, setExtractedPositions] = useState<ExtractedPosition[]>([]);
+  const [extractedPositionsOpen, setExtractedPositionsOpen] = useState<ExtractedPosition[]>([]);
+  const [extractedPositionsClosed, setExtractedPositionsClosed] = useState<ExtractedPosition[]>([]);
+  const [showClosedReview, setShowClosedReview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brokerDetected, setBrokerDetected] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +68,8 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
     setSelectedFile(file);
     setError(null);
-    setExtractedPositions([]);
+    setExtractedPositionsOpen([]);
+                  setExtractedPositionsClosed([]);
   }, []);
 
   const parseCSV = async (text: string): Promise<ExtractedPosition[]> => {
@@ -162,7 +170,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     // Check for Robinhood-style format (Description field contains option details)
     const description = getValue(['description', 'desc']);
     const instrument = getValue(['instrument', 'symbol', 'ticker']);
-    const transCode = getValue(['trans code', 'trans_code', 'transaction code', 'type']);
+    const transCode = getValue(['trans code', 'trans_code', 'transaction code', 'type', 'trans']);
     
     // Try to parse option details from Description (e.g., "PLTR 2/20/2026 Put $157.50")
     let ticker = instrument;
@@ -172,6 +180,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     let side: 'buy' | 'sell' = 'buy';
     let quantity = 0;
     let entryPrice = 0;
+    let amountVal = 0;
 
     // Parse Robinhood Description format: "TICKER M/D/YYYY Type $Strike" or "TICKER M/DD/YYYY Type $Strike"
     const robinhoodMatch = description.match(/^(\w+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(Put|Call)\s+\$([\d.]+)/i);
@@ -184,14 +193,14 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       // Determine side from Trans Code
       // STO = Sell to Open (sell), BTC = Buy to Close (buy to close short)
       // OASGN = Assignment (could be either)
-      const transCodeUpper = transCode.toUpperCase();
+      const transCodeUpper = (transCode || '').toUpperCase();
       if (transCodeUpper === 'STO' || transCodeUpper === 'SELL') {
         side = 'sell';
-      } else if (transCodeUpper === 'BTC' || transCodeUpper === 'BUY') {
-        // BTC means buying to close a short position
-        side = 'sell'; // We're tracking the original position which was a sell
+      } else if (transCodeUpper === 'BTC' || transCodeUpper === 'BUY' || transCodeUpper === 'BTO') {
+        // BTC/BTO means buying to close or buy to open; treat BTC as closing of a sell
+        side = 'sell'; // We'll categorize by transCode later
       } else if (transCodeUpper === 'OASGN') {
-        // Assignment - if it's a put and you're buying stock, you sold the put
+        // Assignment - treat as closed (side=sell originally)
         side = 'sell';
       }
       
@@ -207,8 +216,9 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         entryPrice = parseFloat(priceStr);
       } else if (amountStr && quantity > 0) {
         // Amount is total, divide by quantity * 100 to get per-contract price
-        const amount = Math.abs(parseFloat(amountStr.replace(/[^0-9.-]/g, '')) || 0);
-        entryPrice = amount / (quantity * 100);
+        const amount = parseFloat(amountStr.replace(/[^0-9.-]/g, '')) || 0;
+        amountVal = amount;
+        entryPrice = Math.abs(amount) / (quantity * 100);
       }
     } else {
       // Standard format parsing
@@ -248,6 +258,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     const broker = detectBroker(row) || 'Robinhood'; // Default to Robinhood for this format
 
     return {
+      _id: `${ticker.toUpperCase()}-${optionType}-${strike}-${expiry}-${Math.random().toString(36).slice(2,8)}`,
       ticker: ticker.toUpperCase(),
       optionType,
       side,
@@ -255,8 +266,12 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       expiry,
       quantity,
       entryPrice,
+      transCode: transCode || undefined,
+      amount: amountVal || undefined,
       broker,
       selected: true,
+      realizedPnl: null,
+      pairedWith: null,
       rawData: row,
     };
   };
@@ -355,9 +370,66 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
       if (positions.length === 0) {
         setError('No option positions detected in file. Check the format or try manual entry.');
-        setExtractedPositions([]);
+        setExtractedPositionsOpen([]);
+        setExtractedPositionsClosed([]);
       } else {
-        setExtractedPositions(positions);
+        // Classify into Open (STO) and Closed (BTC/OASGN/others)
+        const open: ExtractedPosition[] = [];
+        const closed: ExtractedPosition[] = [];
+
+        // Make a shallow copy to allow quantity adjustments during pairing
+        const openPool = positions.map(p => ({ ...p }));
+
+        // First, separate by transCode if available
+        for (const p of positions) {
+          const tc = (p.transCode || '').toUpperCase();
+          if (tc === 'STO' || tc === 'SELL' || tc === 'STO-OPEN') {
+            open.push({ ...p });
+          } else if (tc === 'BTC' || tc === 'OASGN' || tc === 'BTO' || tc === 'BUY') {
+            closed.push({ ...p });
+          } else {
+            // Heuristic: if transCode is missing, treat as open if side==='sell'
+            if (p.side === 'sell') open.push({ ...p });
+            else closed.push({ ...p });
+          }
+        }
+
+        // Attempt pairing closed items with opens to compute realized P&L
+        const opensByKey: Record<string, ExtractedPosition[]> = {};
+        for (const o of open) {
+          const key = `${o.ticker}|${o.optionType}|${o.strike}|${o.expiry}`;
+          if (!opensByKey[key]) opensByKey[key] = [];
+          // track remainingQuantity for pairing
+          (o as any).remaining = o.quantity;
+          opensByKey[key].push(o);
+        }
+
+        for (const c of closed) {
+          const key = `${c.ticker}|${c.optionType}|${c.strike}|${c.expiry}`;
+          const pool = opensByKey[key] || [];
+          let remainingToMatch = c.quantity;
+          for (const o of pool) {
+            const oRemaining = (o as any).remaining || 0;
+            if (oRemaining <= 0) continue;
+            const matchQty = Math.min(oRemaining, remainingToMatch);
+            if (matchQty <= 0) continue;
+
+            // Compute realized P&L per contract: (open.entryPrice - close.entryPrice) * 100
+            if (o.entryPrice && c.entryPrice) {
+              const pnlPer = (o.entryPrice - c.entryPrice) * 100;
+              const pnl = pnlPer * matchQty;
+              c.realizedPnl = (c.realizedPnl || 0) + pnl;
+              c.pairedWith = o._id || null;
+              (o as any).remaining = oRemaining - matchQty;
+              remainingToMatch -= matchQty;
+            }
+
+            if (remainingToMatch <= 0) break;
+          }
+        }
+
+        setExtractedPositionsOpen(open);
+        setExtractedPositionsClosed(closed);
         setBrokerDetected(positions[0]?.broker || null);
       }
     } catch (err) {
@@ -367,20 +439,32 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     }
   }, [selectedFile]);
 
-  const toggleSelection = (index: number) => {
-    setExtractedPositions(prev => 
+  const toggleSelectionOpen = (index: number) => {
+    setExtractedPositionsOpen(prev => 
       prev.map((p, i) => i === index ? { ...p, selected: !p.selected } : p)
     );
   };
 
-  const updatePosition = (index: number, field: keyof ExtractedPosition, value: any) => {
-    setExtractedPositions(prev =>
+  const updateOpenPosition = (index: number, field: keyof ExtractedPosition, value: any) => {
+    setExtractedPositionsOpen(prev =>
+      prev.map((p, i) => i === index ? { ...p, [field]: value } : p)
+    );
+  };
+
+  const toggleSelectionClosed = (index: number) => {
+    setExtractedPositionsClosed(prev => 
+      prev.map((p, i) => i === index ? { ...p, selected: !p.selected } : p)
+    );
+  };
+
+  const updateClosedPosition = (index: number, field: keyof ExtractedPosition, value: any) => {
+    setExtractedPositionsClosed(prev =>
       prev.map((p, i) => i === index ? { ...p, [field]: value } : p)
     );
   };
 
   const handleImport = () => {
-    const selectedPositions = extractedPositions
+    const selectedPositions = extractedPositionsOpen
       .filter(p => p.selected)
       .map(p => ({
         id: generateId(),
@@ -398,7 +482,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     onImport(selectedPositions);
   };
 
-  const selectedCount = extractedPositions.filter(p => p.selected).length;
+  const selectedCount = extractedPositionsOpen.filter(p => p.selected).length;
 
   return (
     <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -460,7 +544,8 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
               <button
                 onClick={() => {
                   setSelectedFile(null);
-                  setExtractedPositions([]);
+                  setExtractedPositionsOpen([]);
+                  setExtractedPositionsClosed([]);
                   setError(null);
                 }}
                 className="text-red-500 hover:text-red-700"
@@ -471,7 +556,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
               </button>
             </div>
 
-            {!extractedPositions.length && !isAnalyzing && (
+            {!extractedPositionsOpen.length && !isAnalyzing && (
               <button
                 onClick={handleAnalyze}
                 disabled={isAnalyzing}
@@ -517,7 +602,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         )}
 
         {/* Extracted Positions */}
-        {extractedPositions.length > 0 && (
+        {(extractedPositionsOpen.length > 0 || extractedPositionsClosed.length > 0) && (
           <div>
             {brokerDetected && (
               <p className="text-sm text-gray-600 mb-3">
@@ -527,27 +612,36 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-medium text-gray-700">
-                {extractedPositions.length} position{extractedPositions.length !== 1 ? 's' : ''} detected
+                {extractedPositionsOpen.length} open, {extractedPositionsClosed.length} closed/assigned
               </p>
-              <button
-                onClick={() => setExtractedPositions(prev => prev.map(p => ({ ...p, selected: true })))}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                Select All
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: true })))}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Select All Open
+                </button>
+                <button
+                  onClick={() => setShowClosedReview(prev => !prev)}
+                  className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700 hover:bg-gray-200"
+                >
+                  {showClosedReview ? 'Hide Closed / Assigned' : 'Review Closed / Assigned'}
+                </button>
+              </div>
             </div>
 
+            {/* Open positions (pre-selected) */}
             <div className="space-y-3 max-h-64 overflow-y-auto">
-              {extractedPositions.map((position, index) => (
+              {extractedPositionsOpen.map((position, index) => (
                 <div
-                  key={index}
+                  key={position._id || index}
                   className={`border rounded-lg p-3 ${position.selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
                 >
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       checked={position.selected}
-                      onChange={() => toggleSelection(index)}
+                      onChange={() => toggleSelectionOpen(index)}
                       className="mt-1 h-4 w-4 text-blue-600 rounded"
                     />
                     <div className="flex-1">
@@ -556,6 +650,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                         <span className={`text-xs px-2 py-0.5 rounded ${position.optionType === 'call' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                           {position.optionType.toUpperCase()}
                         </span>
+                        <span className="text-xs ml-2 text-gray-500">{position.transCode || ''}</span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -564,7 +659,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                           <input
                             type="number"
                             value={position.strike}
-                            onChange={(e) => updatePosition(index, 'strike', parseFloat(e.target.value))}
+                            onChange={(e) => updateOpenPosition(index, 'strike', parseFloat(e.target.value))}
                             className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
@@ -573,7 +668,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                           <input
                             type="text"
                             value={position.expiry}
-                            onChange={(e) => updatePosition(index, 'expiry', e.target.value)}
+                            onChange={(e) => updateOpenPosition(index, 'expiry', e.target.value)}
                             className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
@@ -582,7 +677,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                           <input
                             type="number"
                             value={position.quantity}
-                            onChange={(e) => updatePosition(index, 'quantity', parseInt(e.target.value))}
+                            onChange={(e) => updateOpenPosition(index, 'quantity', parseInt(e.target.value))}
                             className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
@@ -592,7 +687,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                             type="number"
                             step="0.01"
                             value={position.entryPrice}
-                            onChange={(e) => updatePosition(index, 'entryPrice', parseFloat(e.target.value))}
+                            onChange={(e) => updateOpenPosition(index, 'entryPrice', parseFloat(e.target.value))}
                             className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
@@ -601,7 +696,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                       <div className="flex gap-2 mt-2">
                         <select
                           value={position.side}
-                          onChange={(e) => updatePosition(index, 'side', e.target.value)}
+                          onChange={(e) => updateOpenPosition(index, 'side', e.target.value)}
                           className="text-xs px-2 py-1 border rounded"
                         >
                           <option value="buy">Buy</option>
@@ -609,7 +704,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                         </select>
                         <select
                           value={position.optionType}
-                          onChange={(e) => updatePosition(index, 'optionType', e.target.value)}
+                          onChange={(e) => updateOpenPosition(index, 'optionType', e.target.value)}
                           className="text-xs px-2 py-1 border rounded"
                         >
                           <option value="call">Call</option>
@@ -621,6 +716,59 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                 </div>
               ))}
             </div>
+
+            {/* Closed / Assigned review */}
+            {showClosedReview && (
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold mb-2">Closed / Assigned ({extractedPositionsClosed.length})</h3>
+                <div className="space-y-3 max-h-48 overflow-y-auto">
+                  {extractedPositionsClosed.map((position, index) => (
+                    <div key={position._id || index} className={`border rounded-lg p-3 ${position.selected ? 'border-gray-400 bg-gray-50' : 'border-gray-100'}`}>
+                      <div className="flex items-start gap-3">
+                        <input type="checkbox" checked={position.selected} onChange={() => toggleSelectionClosed(index)} className="mt-1 h-4 w-4 text-gray-600 rounded" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">{position.ticker}</span>
+                            <span className="text-xs text-gray-500">{position.transCode || ''}</span>
+                            {position.realizedPnl != null && (
+                              <span className="ml-2 text-xs text-green-700">Realized: ${position.realizedPnl.toFixed(2)}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-600">{position.strike} • {position.expiry} • Qty: {position.quantity} • Entry: ${position.entryPrice}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="mt-3 flex gap-3">
+                    <button
+                      onClick={() => {
+                        // Import selected closed as closed trades (notes contain pairing info)
+                        const selectedClosed = extractedPositionsClosed.filter(p => p.selected).map(p => ({
+                          id: generateId(),
+                          ticker: p.ticker.toUpperCase(),
+                          optionType: p.optionType,
+                          side: p.side,
+                          strike: p.strike,
+                          expiry: p.expiry,
+                          quantity: p.quantity,
+                          entryPrice: p.entryPrice,
+                          entryDate: new Date().toISOString().split('T')[0],
+                          broker: p.broker || brokerDetected || undefined,
+                          notes: `closed_import; trans:${p.transCode || ''}; realizedPnl:${p.realizedPnl ?? ''}; pairedWith:${p.pairedWith ?? ''}`
+                        } as OptionPosition));
+
+                        onImport(selectedClosed);
+                      }}
+                      className="px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-900 disabled:opacity-50"
+                    >
+                      Import Selected Closed
+                    </button>
+                    <button onClick={() => setShowClosedReview(false)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-300">Close Review</button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button
