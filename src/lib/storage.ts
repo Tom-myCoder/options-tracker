@@ -342,3 +342,102 @@ export const fetchAndStoreHistoricalPrices = async (position: OptionPosition): P
     throw error;
   }
 };
+
+// Clear all positions from localStorage
+export const clearAllPositions = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(STORAGE_KEY);
+};
+
+const CLOSED_POSITIONS_KEY = 'options-tracker-closed-positions';
+
+export interface ClosedPosition {
+  id: string;
+  ticker: string;
+  optionType: 'call' | 'put';
+  side: 'buy' | 'sell';
+  strike: number;
+  expiry: string;
+  quantity: number;
+  entryPrice: number;
+  closePrice?: number;
+  entryDate: string;
+  closeDate: string;
+  realizedPnl: number;
+  broker?: string;
+  notes?: string;
+  importedFrom?: string;
+  importDate: string;
+}
+
+export const getClosedPositions = (): ClosedPosition[] => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem(CLOSED_POSITIONS_KEY);
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error('Error parsing closed positions:', e);
+    return [];
+  }
+};
+
+export const saveClosedPosition = (position: ClosedPosition): void => {
+  const positions = getClosedPositions();
+  // Check if already exists (same id)
+  const index = positions.findIndex(p => p.id === position.id);
+  if (index >= 0) {
+    positions[index] = position;
+  } else {
+    positions.push(position);
+  }
+  localStorage.setItem(CLOSED_POSITIONS_KEY, JSON.stringify(positions));
+};
+
+export const saveClosedPositions = (newPositions: ClosedPosition[]): void => {
+  const existing = getClosedPositions();
+  const merged = [...existing];
+  for (const pos of newPositions) {
+    const index = merged.findIndex(p => p.id === pos.id);
+    if (index >= 0) {
+      merged[index] = pos;
+    } else {
+      merged.push(pos);
+    }
+  }
+  localStorage.setItem(CLOSED_POSITIONS_KEY, JSON.stringify(merged));
+};
+
+export const clearClosedPositions = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(CLOSED_POSITIONS_KEY);
+};
+
+export const exportClosedPositionsCSV = (): string => {
+  const positions = getClosedPositions();
+  if (positions.length === 0) return '';
+  
+  const headers = ['Ticker', 'Type', 'Side', 'Strike', 'Expiry', 'Qty', 'Entry Price', 'Close Price', 'Entry Date', 'Close Date', 'Realized P&L', 'Broker', 'Notes'];
+  const rows = positions.map(p => [
+    p.ticker,
+    p.optionType,
+    p.side,
+    p.strike,
+    p.expiry,
+    p.quantity,
+    p.entryPrice,
+    p.closePrice || '',
+    p.entryDate,
+    p.closeDate,
+    p.realizedPnl,
+    p.broker || '',
+    p.notes || ''
+  ]);
+  
+  return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+};
+
+export const exportClosedPositionsJSON = (): string => {
+  const positions = getClosedPositions();
+  return JSON.stringify(positions, null, 2);
+};

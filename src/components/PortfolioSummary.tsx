@@ -1,13 +1,24 @@
 'use client';
 
 import { OptionPosition } from '@/types/options';
-import { exportPositionsCSV, importPositionsCSV, exportPositionsJSON, importPositionsJSON, exportPositionsWithHistoryJSON } from '@/lib/storage';
+import { 
+  exportPositionsCSV, importPositionsCSV, exportPositionsJSON, importPositionsJSON, 
+  exportPositionsWithHistoryJSON, clearAllPositions,
+  getClosedPositions, exportClosedPositionsCSV, exportClosedPositionsJSON, clearClosedPositions 
+} from '@/lib/storage';
+import { useState, useEffect } from 'react';
 
 interface PortfolioSummaryProps {
   positions: OptionPosition[];
 }
 
 export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
+  const [closedPositions, setClosedPositions] = useState<any[]>([]);
+  const [showClosedHistory, setShowClosedHistory] = useState(false);
+
+  useEffect(() => {
+    setClosedPositions(getClosedPositions());
+  }, []);
   const calculateSummary = () => {
     const totalPositions = positions.length;
     const buyPositions = positions.filter(p => p.side === 'buy');
@@ -139,6 +150,64 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     }
   };
 
+  const handleClearAll = () => {
+    if (positions.length === 0) {
+      alert('No positions to clear.');
+      return;
+    }
+    const ok = window.confirm(`Are you sure you want to clear all ${positions.length} position${positions.length !== 1 ? 's' : ''}? This cannot be undone.`);
+    if (!ok) return;
+    clearAllPositions();
+    alert('All positions have been cleared.');
+    window.location.reload();
+  };
+
+  const handleExportClosedCSV = () => {
+    if (closedPositions.length === 0) {
+      alert('No closed positions to export.');
+      return;
+    }
+    const csv = exportClosedPositionsCSV();
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'options-closed-positions.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportClosedJSON = () => {
+    if (closedPositions.length === 0) {
+      alert('No closed positions to export.');
+      return;
+    }
+    const json = exportClosedPositionsJSON();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'options-closed-positions.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearClosed = () => {
+    if (closedPositions.length === 0) {
+      alert('No closed positions to clear.');
+      return;
+    }
+    const ok = window.confirm(`Are you sure you want to clear all ${closedPositions.length} closed position${closedPositions.length !== 1 ? 's' : ''}? This cannot be undone.`);
+    if (!ok) return;
+    clearClosedPositions();
+    setClosedPositions([]);
+    alert('All closed positions have been cleared.');
+  };
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -174,6 +243,13 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
               style={{ display: 'none' }} 
             />
           </label>
+          <button 
+            onClick={handleClearAll}
+            className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+            title="Clear all positions from localStorage"
+          >
+            Clear All
+          </button>
         </div>
       </div>
 
@@ -212,6 +288,86 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
           <p className="text-sm text-gray-600 mb-1">Brokers</p>
           <p className="text-sm font-medium text-gray-900">{brokerList}</p>
         </div>
+      </div>
+
+      {/* Closed Positions Section */}
+      <div className="mt-6 border-t pt-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <span className="text-sm text-gray-600 font-medium">Closed Positions History</span>
+            <span className="ml-2 text-sm text-gray-500">({closedPositions.length} recorded)</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowClosedHistory(!showClosedHistory)}
+              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200"
+            >
+              {showClosedHistory ? 'Hide' : 'Show'} History
+            </button>
+            <button
+              onClick={handleExportClosedCSV}
+              disabled={closedPositions.length === 0}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={handleExportClosedJSON}
+              disabled={closedPositions.length === 0}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+            >
+              Export JSON
+            </button>
+            <button
+              onClick={handleClearClosed}
+              disabled={closedPositions.length === 0}
+              className="px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
+            >
+              Clear History
+            </button>
+          </div>
+        </div>
+
+        {showClosedHistory && closedPositions.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left">Ticker</th>
+                  <th className="px-3 py-2 text-left">Type</th>
+                  <th className="px-3 py-2 text-right">Strike</th>
+                  <th className="px-3 py-2 text-left">Expiry</th>
+                  <th className="px-3 py-2 text-right">Qty</th>
+                  <th className="px-3 py-2 text-right">Entry $</th>
+                  <th className="px-3 py-2 text-right">Close $</th>
+                  <th className="px-3 py-2 text-right">Realized P&L</th>
+                  <th className="px-3 py-2 text-left">Close Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {closedPositions.map((pos) => (
+                  <tr key={pos.id} className="border-b hover:bg-gray-50">
+                    <td className="px-3 py-2 font-medium">{pos.ticker}</td>
+                    <td className="px-3 py-2">{pos.optionType}</td>
+                    <td className="px-3 py-2 text-right">{pos.strike}</td>
+                    <td className="px-3 py-2">{pos.expiry}</td>
+                    <td className="px-3 py-2 text-right">{pos.quantity}</td>
+                    <td className="px-3 py-2 text-right">{pos.entryPrice?.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right">{pos.closePrice?.toFixed(2) || '-'}</td>
+                    <td className={`px-3 py-2 text-right font-medium ${pos.realizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {pos.realizedPnl >= 0 ? '+' : ''}{formatCurrency(pos.realizedPnl)}
+                    </td>
+                    <td className="px-3 py-2">{pos.closeDate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {showClosedHistory && closedPositions.length === 0 && (
+          <p className="text-sm text-gray-500 italic">No closed positions recorded yet. Import a statement with closed/assigned trades to populate this history.</p>
+        )}
       </div>
     </>
   );

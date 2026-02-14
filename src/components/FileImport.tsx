@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { OptionPosition } from '@/types/options';
-import { generateId } from '@/lib/storage';
+import { generateId, saveClosedPositions } from '@/lib/storage';
 import * as XLSX from 'xlsx';
 
 interface FileImportProps {
@@ -511,7 +511,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
   const selectedCount = extractedPositionsOpen.filter(p => p.selected).length;
 
   return (
-    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
       <div className="p-6 border-b">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">Import from File</h2>
@@ -792,6 +792,27 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                           broker: p.broker || brokerDetected || undefined,
                           notes: `closed_import; trans:${p.transCode || ''}; realizedPnl:${p.realizedPnl ?? ''}; pairedWith:${p.pairedWith ?? ''}`
                         } as OptionPosition));
+
+                        // Also save to closed positions history for P&L tracking
+                        const closedForHistory = extractedPositionsClosed.filter(p => p.selected).map(p => ({
+                          id: generateId(),
+                          ticker: p.ticker.toUpperCase(),
+                          optionType: p.optionType,
+                          side: p.side,
+                          strike: p.strike,
+                          expiry: p.expiry,
+                          quantity: p.quantity,
+                          entryPrice: p.entryPrice,
+                          closePrice: p.entryPrice, // For closed positions, the close price is what we paid/received to close
+                          entryDate: p.entryDate || new Date().toISOString().split('T')[0],
+                          closeDate: new Date().toISOString().split('T')[0],
+                          realizedPnl: p.realizedPnl || 0,
+                          broker: p.broker || brokerDetected || undefined,
+                          notes: `trans:${p.transCode || ''}; pairedWith:${p.pairedWith ?? ''}`,
+                          importedFrom: 'CSV Import',
+                          importDate: new Date().toISOString()
+                        }));
+                        saveClosedPositions(closedForHistory);
 
                         onImport(selectedClosed);
                       }}
