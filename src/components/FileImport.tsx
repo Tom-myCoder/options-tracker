@@ -19,6 +19,7 @@ interface ExtractedPosition {
   expiry: string;
   quantity: number;
   entryPrice: number;
+  entryDate?: string;
   transCode?: string;
   amount?: number;
   broker?: string;
@@ -182,13 +183,15 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     let entryPrice = 0;
     let amountVal = 0;
 
-    // Parse Robinhood Description format: "TICKER M/D/YYYY Type $Strike" or "TICKER M/DD/YYYY Type $Strike"
-    const robinhoodMatch = description.match(/^(\w+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(Put|Call)\s+\$([\d.]+)/i);
+    // Parse Robinhood Description format: find anywhere in the Description
+    // e.g. "... PLTR 2/20/2026 Put $157.50 ..." (not necessarily at start)
+    const robinhoodMatch = description.match(/(\w+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(Put|Call)\s+\$([\d.,]+)/i) ||
+                            (instrument || '').match(/(\w+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(Put|Call)\s+\$([\d.,]+)/i);
     if (robinhoodMatch) {
       ticker = robinhoodMatch[1];
       expiry = parseDate(robinhoodMatch[2]);
       optionType = robinhoodMatch[3].toLowerCase() as 'call' | 'put';
-      strike = parseFloat(robinhoodMatch[4]) || 0;
+      strike = parseFloat(String(robinhoodMatch[4]).replace(/,/g, '')) || 0;
       
       // Determine side from Trans Code
       // STO = Sell to Open (sell), BTC = Buy to Close (buy to close short)
@@ -205,8 +208,15 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       }
       
       // Get quantity
-      const qtyStr = getValue(['quantity', 'qty']);
+      let qtyStr = getValue(['quantity', 'qty']);
       quantity = Math.abs(parseInt(qtyStr) || 0);
+      // If quantity missing, try to extract a number from description (e.g., "3 PLTR Options Assigned")
+      if (quantity === 0 && description) {
+        const qtyMatch = description.match(/(\d+)\s+(?:\w+\s+)?Options?\b/i) || description.match(/(\d+)\s+\w+\s+Option/i) || description.match(/^(\d+)\b/);
+        if (qtyMatch) {
+          quantity = Math.abs(parseInt(qtyMatch[1]) || 0);
+        }
+      }
       
       // Get price - for options, look at the Amount field / (quantity * 100)
       const priceStr = getValue(['price']);
@@ -256,6 +266,9 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
     // Detect broker
     const broker = detectBroker(row) || 'Robinhood'; // Default to Robinhood for this format
+
+    const dateStr = getValue(['activity date','process date','settle date','activity_date','process_date','settle_date']);
+    const entryDate = parseDate(dateStr);
 
     return {
       _id: `${ticker.toUpperCase()}-${optionType}-${strike}-${expiry}-${Math.random().toString(36).slice(2,8)}`,
@@ -475,7 +488,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         expiry: p.expiry,
         quantity: p.quantity,
         entryPrice: p.entryPrice,
-        entryDate: new Date().toISOString().split('T')[0],
+        entryDate: p.entryDate || new Date().toISOString().split('T')[0],
         broker: p.broker || brokerDetected || undefined,
       } as OptionPosition));
 
@@ -753,7 +766,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                           expiry: p.expiry,
                           quantity: p.quantity,
                           entryPrice: p.entryPrice,
-                          entryDate: new Date().toISOString().split('T')[0],
+                          entryDate: p.entryDate || new Date().toISOString().split('T')[0],
                           broker: p.broker || brokerDetected || undefined,
                           notes: `closed_import; trans:${p.transCode || ''}; realizedPnl:${p.realizedPnl ?? ''}; pairedWith:${p.pairedWith ?? ''}`
                         } as OptionPosition));
