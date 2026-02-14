@@ -398,22 +398,23 @@ export const saveClosedPositions = (newPositions: ClosedPosition[]): void => {
   const existing = getClosedPositions();
   const merged = [...existing];
 
-  // Helper to compute a stable signature for deduplication
-  const sig = (p: ClosedPosition) => {
-    const rp = Math.round((p.realizedPnl || 0) * 100); // in cents
-    return `${p.ticker}|${p.optionType}|${p.strike}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}|${rp}`;
-  };
-
-  const existingSigs = new Set(existing.map(e => sig(e)));
+  // Helper to compute a stable signature for deduplication (ignore minor P&L calc differences)
+  const sig = (p: ClosedPosition) => `${p.ticker}|${p.optionType}|${Math.round(p.strike*100)/100}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}`;
 
   for (const pos of newPositions) {
     const s = sig(pos);
-    if (existingSigs.has(s)) {
-      // duplicate — skip
-      continue;
+    const index = merged.findIndex(e => sig(e) === s);
+    if (index >= 0) {
+      // Merge: update existing record with latest fields
+      merged[index] = {
+        ...merged[index],
+        ...pos,
+        // prefer newest importDate if provided
+        importDate: pos.importDate || merged[index].importDate,
+      };
+    } else {
+      merged.push(pos);
     }
-    merged.push(pos);
-    existingSigs.add(s);
   }
 
   localStorage.setItem(CLOSED_POSITIONS_KEY, JSON.stringify(merged));
