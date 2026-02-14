@@ -704,6 +704,15 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                             className="w-full px-2 py-1 border rounded text-sm text-black"
                           />
                         </div>
+                        <div>
+                          <label className="text-xs text-gray-700 font-medium">Entry Date</label>
+                          <input
+                            type="date"
+                            value={position.entryDate || ''}
+                            onChange={(e) => updateOpenPosition(index, 'entryDate', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm text-black"
+                          />
+                        </div>
                       </div>
 
                       <div className="flex gap-2 mt-2">
