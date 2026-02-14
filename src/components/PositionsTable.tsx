@@ -46,56 +46,56 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-        <table className="w-full min-w-full table-auto">
+      <div className="bg-white rounded-lg shadow-md overflow-x-auto w-full">
+        <table className="w-full table-auto">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ticker
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Side
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Strike
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Expiry
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   DTE
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Qty
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Entry
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Current
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Cash Flow
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Exposure
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   P&L
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Purchased
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Broker
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Notes
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -129,10 +129,10 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                 
                 return (
                   <tr key={position.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">
                       {position.ticker}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         position.optionType === 'call' 
                           ? 'bg-green-100 text-green-800' 
@@ -141,7 +141,7 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                         {position.optionType.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         isBuy 
                           ? 'bg-blue-100 text-blue-800' 
@@ -150,13 +150,13 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                         {isBuy ? 'BUY' : 'SELL'}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {formatCurrency(position.strike)}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {new Date(position.expiry).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-sm ${
                         dte < 7 ? 'text-red-600 font-semibold' : 
                         dte < 30 ? 'text-yellow-600' : 'text-gray-600'
@@ -164,13 +164,13 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                         {dte}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {position.quantity}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {formatCurrency(position.entryPrice)}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {hasLivePrice ? (
                         <>
                           {formatCurrency(currentPrice)}
@@ -180,7 +180,7 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                         <span className="text-gray-400">-</span>
                       )}
                     </td>
-                    <td className={`px-4 py-4 whitespace-nowrap font-medium ${
+                    <td className={`px-3 py-2 whitespace-nowrap font-medium ${
                       cashFlow >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
                       {cashFlow >= 0 ? '+' : ''}{formatCurrency(cashFlow)}
@@ -188,10 +188,10 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                         ({isBuy ? 'debit' : 'credit'})
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">
                       {exposure !== null ? formatCurrency(exposure) : '-'}
                     </td>
-                    <td className={`px-4 py-4 whitespace-nowrap font-medium ${
+                    <td className={`px-3 py-2 whitespace-nowrap font-medium ${
                       !hasLivePrice ? 'text-gray-400' : pnl >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
                       {hasLivePrice ? (
@@ -205,16 +205,16 @@ export default function PositionsTable({ positions, onDelete, onEdit }: Position
                         <span className="text-gray-400">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {position.purchaseDate ? new Date(position.purchaseDate).toLocaleDateString() : '-'}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-gray-900">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-900">
                       {position.broker || '-'}
                     </td>
-                    <td className="px-4 py-4 text-gray-600 max-w-xs truncate">
+                    <td className="px-3 py-2 text-gray-600 max-w-xs truncate">
                       {position.notes || '-'}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
                         <button
                           onClick={() => setSelectedPosition(position)}
