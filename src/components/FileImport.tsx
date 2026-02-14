@@ -49,9 +49,9 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/pdf'
     ];
-    
+
     const validExtensions = ['.csv', '.xls', '.xlsx', '.pdf'];
-    const hasValidExtension = validExtensions.some(ext => 
+    const hasValidExtension = validExtensions.some(ext =>
       file.name.toLowerCase().endsWith(ext)
     );
 
@@ -78,24 +78,24 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
     // Try to detect header row
     const headers = parseCSVLine(lines[0]);
-    
+
     const positions: ExtractedPosition[] = [];
-    
+
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i]);
       if (cols.length < 3) continue; // Skip empty/short lines
-      
+
       const rowData: Record<string, string> = {};
       headers.forEach((h, idx) => {
         rowData[h.toLowerCase().trim()] = cols[idx] || '';
       });
-      
+
       const position = extractPositionFromRow(rowData);
       if (position) {
         positions.push(position);
       }
     }
-    
+
     return positions;
   };
 
@@ -103,27 +103,27 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
-    
+
     if (data.length < 2) return [];
-    
+
     const headers = (data[0] as string[]).map(h => String(h).toLowerCase().trim());
     const positions: ExtractedPosition[] = [];
-    
+
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       if (!row || row.length < 3) continue;
-      
+
       const rowData: Record<string, string> = {};
       headers.forEach((h, idx) => {
         rowData[h] = String(row[idx] || '');
       });
-      
+
       const position = extractPositionFromRow(rowData);
       if (position) {
         positions.push(position);
       }
     }
-    
+
     return positions;
   };
 
@@ -133,13 +133,13 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     const base64 = btoa(
       new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
     );
-    
+
     const response = await fetch('/api/analyze-screenshot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         imageBase64: `data:application/pdf;base64,${base64}`,
-        isPDF: true 
+        isPDF: true
       }),
     });
 
@@ -171,7 +171,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     const description = getValue(['description', 'desc']);
     const instrument = getValue(['instrument', 'symbol', 'ticker']);
     const transCode = getValue(['trans code', 'trans_code', 'transaction code', 'type', 'trans']);
-    
+
     // Try to parse option details from Description (e.g., "PLTR 2/20/2026 Put $157.50")
     let ticker = instrument;
     let optionType: 'call' | 'put' = 'call';
@@ -191,7 +191,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       expiry = parseDate(robinhoodMatch[2]);
       optionType = robinhoodMatch[3].toLowerCase() as 'call' | 'put';
       strike = parseFloat(String(robinhoodMatch[4]).replace(/,/g, '')) || 0;
-      
+
       // Determine side from Trans Code
       // STO = Sell to Open (sell), BTC = Buy to Close (buy to close short)
       // OASGN = Assignment (could be either)
@@ -205,7 +205,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         // Assignment - treat as closed (side=sell originally)
         side = 'sell';
       }
-      
+
       // Get quantity
       let qtyStr = getValue(['quantity', 'qty']);
       quantity = Math.abs(parseInt(qtyStr) || 0);
@@ -216,11 +216,11 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
           quantity = Math.abs(parseInt(qtyMatch[1]) || 0);
         }
       }
-      
+
       // Get price - for options, look at the Amount field / (quantity * 100)
       const priceStr = getValue(['price']);
       const amountStr = getValue(['amount']);
-      
+
       if (priceStr && parseFloat(priceStr) > 0) {
         entryPrice = parseFloat(priceStr);
       } else if (amountStr && quantity > 0) {
@@ -240,8 +240,8 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
       const sideStr = getValue(['side', 'action', 'buy/sell', 'position']);
       const qtyStr = getValue(['qty', 'quantity', 'contracts', 'size']);
-      if (qtyStr.startsWith('-') || 
-          sideStr.toLowerCase().includes('sell') || 
+      if (qtyStr.startsWith('-') ||
+          sideStr.toLowerCase().includes('sell') ||
           sideStr.toLowerCase().includes('short') ||
           sideStr.toLowerCase().includes('credit')) {
         side = 'sell';
@@ -291,7 +291,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
   const parseDate = (dateStr: string): string => {
     if (!dateStr) return new Date().toISOString().split('T')[0];
-    
+
     // Try various date formats
     const formats = [
       // MM/DD/YYYY
@@ -338,11 +338,11 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
       const nextChar = line[i + 1];
-      
+
       if (char === '"') {
         if (inQuotes && nextChar === '"') {
           current += '"';
@@ -388,9 +388,9 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       } else {
         // Filter to only valid option rows (must have ticker, strike>0, expiry, optionType, AND description containing Put/Call)
         const validPositions = positions.filter(p => {
-          const hasOptionFormat = p.ticker && p.ticker.length > 0 && 
-            p.strike > 0 && 
-            p.expiry && p.expiry.length > 0 && 
+          const hasOptionFormat = p.ticker && p.ticker.length > 0 &&
+            p.strike > 0 &&
+            p.expiry && p.expiry.length > 0 &&
             (p.optionType === 'call' || p.optionType === 'put');
           // Also check raw description contains Put or Call (filters out underlying stock buys, CUSIP rows, fees)
           const rawDesc = (p.rawData?.['description'] || p.rawData?.['Description'] || '').toLowerCase();
@@ -512,9 +512,8 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         // Filter out fully-closed open positions (remaining === 0 after pairing)
         const stillOpen = aggregatedOpen.filter(o => (o as any).remaining > 0);
 
-        // Auto-save closed matches to history (for P&L tracking)
-        if (closedMatches.length > 0) saveClosedPositions(closedMatches);
-
+        // Do NOT auto-save closed matches here to avoid duplicates.
+        // Closed positions are saved when the user clicks the Import button (handleImport).
         setExtractedPositionsOpen(stillOpen);
         setExtractedPositionsClosed(closed);
         setBrokerDetected(positions[0]?.broker || null);
@@ -527,7 +526,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
   }, [selectedFile]);
 
   const toggleSelectionOpen = (index: number) => {
-    setExtractedPositionsOpen(prev => 
+    setExtractedPositionsOpen(prev =>
       prev.map((p, i) => i === index ? { ...p, selected: !p.selected } : p)
     );
   };
@@ -539,7 +538,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
   };
 
   const toggleSelectionClosed = (index: number) => {
-    setExtractedPositionsClosed(prev => 
+    setExtractedPositionsClosed(prev =>
       prev.map((p, i) => i === index ? { ...p, selected: !p.selected } : p)
     );
   };
@@ -880,16 +879,16 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                 </div>
                 <div className="max-h-80 overflow-y-auto p-3 space-y-2">
                   {extractedPositionsClosed.map((position, index) => (
-                    <div 
-                      key={position._id || index} 
+                    <div
+                      key={position._id || index}
                       className={`border rounded-lg p-3 ${position.selected ? 'border-gray-500 bg-gray-50' : 'border-gray-200'}`}
                     >
                       <div className="flex items-start gap-3">
-                        <input 
-                          type="checkbox" 
-                          checked={position.selected} 
-                          onChange={() => toggleSelectionClosed(index)} 
-                          className="mt-1 h-4 w-4 text-gray-600 rounded" 
+                        <input
+                          type="checkbox"
+                          checked={position.selected}
+                          onChange={() => toggleSelectionClosed(index)}
+                          className="mt-1 h-4 w-4 text-gray-600 rounded"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -926,8 +925,8 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                 disabled={totalSelectedCount === 0}
                 className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {totalSelectedCount === 0 
-                  ? 'Select positions to import' 
+                {totalSelectedCount === 0
+                  ? 'Select positions to import'
                   : `Import ${selectedOpenCount > 0 ? `${selectedOpenCount} open` : ''}${selectedOpenCount > 0 && selectedClosedCount > 0 ? ' + ' : ''}${selectedClosedCount > 0 ? `${selectedClosedCount} closed` : ''}`
                 }
               </button>
