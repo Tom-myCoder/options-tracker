@@ -7,7 +7,7 @@ import PortfolioSummary from '@/components/PortfolioSummary';
 import ScreenshotImport from '@/components/ScreenshotImport';
 import FileImport from '@/components/FileImport';
 import { OptionPosition } from '@/types/options';
-import { getPositions, savePosition } from '@/lib/storage';
+import { getPositions, savePosition, clearAllPositions } from '@/lib/storage';
 import { useMarketData } from '@/hooks/useMarketData';
 
 // Auto-refresh interval in milliseconds (15 minutes)
@@ -328,7 +328,30 @@ export default function Home() {
 
         {/* Positions Table */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-4">Your Positions</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Your Positions</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (positions.length === 0) {
+                    alert('No open positions to clear.');
+                    return;
+                  }
+                  const ok = window.confirm(`Are you sure you want to clear all ${positions.length} open position${positions.length !== 1 ? 's' : ''}? This cannot be undone.`);
+                  if (!ok) return;
+                  clearAllPositions();
+                  // Refresh local state
+                  setPositions(getPositions());
+                  setRefreshKey(prev => prev + 1);
+                }}
+                className="px-3 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700"
+                title="Clear only open positions"
+              >
+                Clear Positions
+              </button>
+            </div>
+          </div>
+
           <PositionsTable 
             positions={positions} 
             onDelete={handleRefresh}
