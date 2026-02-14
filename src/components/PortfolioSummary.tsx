@@ -39,8 +39,22 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
     const sellPutPositions = positions.filter(p => p.side === 'sell' && p.optionType === 'put');
     const totalExposure = sellPutPositions.reduce((sum, p) => sum + (p.strike * p.quantity * 100), 0);
     
-    // For MVP, P&L is 0 until we add live prices
-    const totalPnL = 0;
+    // Calculate unrealized P&L for open positions using live prices
+    let totalUnrealizedPnL = 0;
+    positions.forEach(p => {
+      if (p.currentPrice && p.currentPrice > 0) {
+        const priceDiff = p.currentPrice - p.entryPrice;
+        // Buy: profit when price goes up, Sell: profit when price goes down
+        const pnl = p.side === 'buy' ? priceDiff : -priceDiff;
+        totalUnrealizedPnL += pnl * p.quantity * 100;
+      }
+    });
+    
+    // Total realized P&L from closed positions
+    const totalRealizedPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
+    
+    // Total P&L = realized + unrealized
+    const totalPnL = totalRealizedPnL + totalUnrealizedPnL;
 
     // Brokers summary (unique non-empty brokers and counts)
     const brokerCounts: Record<string, number> = {};
@@ -58,6 +72,9 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
       netCashFlow,
       totalExposure,
       totalPnL,
+      totalRealizedPnL,
+      totalUnrealizedPnL,
+      closedPositionsCount: closedPositions.length,
       brokerCounts,
     };
   };
@@ -253,7 +270,7 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow-md p-4">
           <p className="text-sm text-gray-600 mb-1">Total Positions</p>
           <p className="text-2xl font-bold text-gray-900">{summary.totalPositions}</p>
@@ -285,6 +302,36 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Realized P&L</p>
+          <p className={`text-2xl font-bold ${summary.totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {summary.totalRealizedPnL >= 0 ? '+' : ''}{formatCurrency(summary.totalRealizedPnL)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {summary.closedPositionsCount} closed positions
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <p className="text-sm text-gray-600 mb-1">Unrealized P&L</p>
+          <p className={`text-2xl font-bold ${summary.totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {summary.totalUnrealizedPnL >= 0 ? '+' : ''}{formatCurrency(summary.totalUnrealizedPnL)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Live prices
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-4 border-2 border-blue-100">
+          <p className="text-sm text-gray-600 mb-1">Total P&L</p>
+          <p className={`text-2xl font-bold ${summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {summary.totalPnL >= 0 ? '+' : ''}{formatCurrency(summary.totalPnL)}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Realized + Unrealized
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-4">
           <p className="text-sm text-gray-600 mb-1">Brokers</p>
           <p className="text-sm font-medium text-gray-900">{brokerList}</p>
         </div>
@@ -293,9 +340,16 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
       {/* Closed Positions Section */}
       <div className="mt-6 border-t pt-4">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <span className="text-sm text-gray-600 font-medium">Closed Positions History</span>
-            <span className="ml-2 text-sm text-gray-500">({closedPositions.length} recorded)</span>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-semibold text-gray-800">Closed Positions History</span>
+            <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+              {closedPositions.length} trades
+            </span>
+            {summary.totalRealizedPnL !== 0 && (
+              <span className={`text-sm font-medium ${summary.totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {summary.totalRealizedPnL >= 0 ? '↗' : '↘'} {formatCurrency(Math.abs(summary.totalRealizedPnL))} total realized
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <button
