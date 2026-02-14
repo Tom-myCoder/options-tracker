@@ -279,6 +279,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       expiry,
       quantity,
       entryPrice,
+      entryDate,
       transCode: transCode || undefined,
       amount: amountVal || undefined,
       broker,
@@ -386,15 +387,20 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         setExtractedPositionsOpen([]);
         setExtractedPositionsClosed([]);
       } else {
+        // Filter to only valid option rows (must have ticker, strike>0, expiry, optionType)
+        const validPositions = positions.filter(p => 
+          p.ticker && p.ticker.length > 0 && 
+          p.strike > 0 && 
+          p.expiry && p.expiry.length > 0 && 
+          (p.optionType === 'call' || p.optionType === 'put')
+        );
+
         // Classify into Open (STO) and Closed (BTC/OASGN/others)
         const open: ExtractedPosition[] = [];
         const closed: ExtractedPosition[] = [];
 
-        // Make a shallow copy to allow quantity adjustments during pairing
-        const openPool = positions.map(p => ({ ...p }));
-
         // First, separate by transCode if available
-        for (const p of positions) {
+        for (const p of validPositions) {
           const tc = (p.transCode || '').toUpperCase();
           if (tc === 'STO' || tc === 'SELL' || tc === 'STO-OPEN') {
             open.push({ ...p });
