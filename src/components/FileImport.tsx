@@ -150,49 +150,102 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
     // Helper to find value by possible column names
     const getValue = (possibleNames: string[]): string => {
       for (const name of possibleNames) {
-        const value = row[name.toLowerCase()];
-        if (value && value.trim()) return value.trim();
+        // Try exact match first
+        if (row[name]) return row[name].trim();
+        // Try lowercase match
+        const lowerKey = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+        if (lowerKey && row[lowerKey]) return row[lowerKey].trim();
       }
       return '';
     };
 
-    const ticker = getValue(['symbol', 'ticker', 'underlying', 'sym']);
-    if (!ticker) return null;
-
-    // Detect option type
-    const typeStr = getValue(['type', 'option type', 'callput', 'option_type']);
+    // Check for Robinhood-style format (Description field contains option details)
+    const description = getValue(['description', 'desc']);
+    const instrument = getValue(['instrument', 'symbol', 'ticker']);
+    const transCode = getValue(['trans code', 'trans_code', 'transaction code', 'type']);
+    
+    // Try to parse option details from Description (e.g., "PLTR 2/20/2026 Put $157.50")
+    let ticker = instrument;
     let optionType: 'call' | 'put' = 'call';
-    if (typeStr.toLowerCase().includes('put') || typeStr === 'P') optionType = 'put';
-    if (typeStr.toLowerCase().includes('call') || typeStr === 'C') optionType = 'call';
-
-    // Detect side
-    const sideStr = getValue(['side', 'action', 'buy/sell', 'position']);
+    let strike = 0;
+    let expiry = '';
     let side: 'buy' | 'sell' = 'buy';
-    const qtyStr = getValue(['qty', 'quantity', 'contracts', 'size']);
-    if (qtyStr.startsWith('-') || 
-        sideStr.toLowerCase().includes('sell') || 
-        sideStr.toLowerCase().includes('short') ||
-        sideStr.toLowerCase().includes('credit')) {
-      side = 'sell';
+    let quantity = 0;
+    let entryPrice = 0;
+
+    // Parse Robinhood Description format: "TICKER M/D/YYYY Type $Strike" or "TICKER M/DD/YYYY Type $Strike"
+    const robinhoodMatch = description.match(/^(\w+)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(Put|Call)\s+\$([\d.]+)/i);
+    if (robinhoodMatch) {
+      ticker = robinhoodMatch[1];
+      expiry = parseDate(robinhoodMatch[2]);
+      optionType = robinhoodMatch[3].toLowerCase() as 'call' | 'put';
+      strike = parseFloat(robinhoodMatch[4]) || 0;
+      
+      // Determine side from Trans Code
+      // STO = Sell to Open (sell), BTC = Buy to Close (buy to close short)
+      // OASGN = Assignment (could be either)
+      const transCodeUpper = transCode.toUpperCase();
+      if (transCodeUpper === 'STO' || transCodeUpper === 'SELL') {
+        side = 'sell';
+      } else if (transCodeUpper === 'BTC' || transCodeUpper === 'BUY') {
+        // BTC means buying to close a short position
+        side = 'sell'; // We're tracking the original position which was a sell
+      } else if (transCodeUpper === 'OASGN') {
+        // Assignment - if it's a put and you're buying stock, you sold the put
+        side = 'sell';
+      }
+      
+      // Get quantity
+      const qtyStr = getValue(['quantity', 'qty']);
+      quantity = Math.abs(parseInt(qtyStr) || 0);
+      
+      // Get price - for options, look at the Amount field / (quantity * 100)
+      const priceStr = getValue(['price']);
+      const amountStr = getValue(['amount']);
+      
+      if (priceStr && parseFloat(priceStr) > 0) {
+        entryPrice = parseFloat(priceStr);
+      } else if (amountStr && quantity > 0) {
+        // Amount is total, divide by quantity * 100 to get per-contract price
+        const amount = Math.abs(parseFloat(amountStr.replace(/[^0-9.-]/g, '')) || 0);
+        entryPrice = amount / (quantity * 100);
+      }
+    } else {
+      // Standard format parsing
+      ticker = getValue(['symbol', 'ticker', 'underlying', 'sym']);
+      if (!ticker) return null;
+
+      const typeStr = getValue(['type', 'option type', 'callput', 'option_type']);
+      if (typeStr.toLowerCase().includes('put') || typeStr === 'P') optionType = 'put';
+      if (typeStr.toLowerCase().includes('call') || typeStr === 'C') optionType = 'call';
+
+      const sideStr = getValue(['side', 'action', 'buy/sell', 'position']);
+      const qtyStr = getValue(['qty', 'quantity', 'contracts', 'size']);
+      if (qtyStr.startsWith('-') || 
+          sideStr.toLowerCase().includes('sell') || 
+          sideStr.toLowerCase().includes('short') ||
+          sideStr.toLowerCase().includes('credit')) {
+        side = 'sell';
+      }
+
+      const strikeStr = getValue(['strike', 'strike price', 'strike_price']);
+      strike = parseFloat(strikeStr.replace(/[^0-9.]/g, '')) || 0;
+
+      const expiryStr = getValue(['expiry', 'expiration', 'exp date', 'expiration date', 'expiry_date']);
+      expiry = parseDate(expiryStr);
+
+      quantity = Math.abs(parseInt(qtyStr.replace(/[^0-9-]/g, '')) || 0);
+
+      const priceStr = getValue(['entry', 'entry price', 'cost', 'avg entry', 'entry_price', 'trade price', 'price']);
+      entryPrice = parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
     }
 
-    // Parse strike
-    const strikeStr = getValue(['strike', 'strike price', 'strike_price']);
-    const strike = parseFloat(strikeStr.replace(/[^0-9.]/g, '')) || 0;
-
-    // Parse expiry - try multiple formats
-    const expiryStr = getValue(['expiry', 'expiration', 'exp date', 'expiration date', 'expiry_date']);
-    let expiry = parseDate(expiryStr);
-
-    // Parse quantity
-    const quantity = Math.abs(parseInt(qtyStr.replace(/[^0-9-]/g, '')) || 0);
-
-    // Parse entry price
-    const priceStr = getValue(['entry', 'entry price', 'cost', 'avg entry', 'entry_price', 'trade price', 'price']);
-    const entryPrice = parseFloat(priceStr.replace(/[^0-9.]/g, '')) || 0;
+    if (!ticker || strike === 0 || quantity === 0) {
+      return null; // Not a valid option position
+    }
 
     // Detect broker
-    const broker = detectBroker(row);
+    const broker = detectBroker(row) || 'Robinhood'; // Default to Robinhood for this format
 
     return {
       ticker: ticker.toUpperCase(),
