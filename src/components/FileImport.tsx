@@ -530,7 +530,8 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
   };
 
   const handleImport = () => {
-    const selectedPositions = extractedPositionsOpen
+    // Import selected OPEN positions to main portfolio
+    const selectedOpenPositions = extractedPositionsOpen
       .filter(p => p.selected)
       .map(p => ({
         id: generateId(),
@@ -545,10 +546,40 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         broker: p.broker || brokerDetected || undefined,
       } as OptionPosition));
 
-    onImport(selectedPositions);
+    // Import selected CLOSED positions to history
+    const selectedClosedForHistory = extractedPositionsClosed
+      .filter(p => p.selected)
+      .map(p => ({
+        id: generateId(),
+        ticker: p.ticker.toUpperCase(),
+        optionType: p.optionType,
+        side: p.side,
+        strike: p.strike,
+        expiry: p.expiry,
+        quantity: p.quantity,
+        entryPrice: p.entryPrice || 0,
+        closePrice: p.entryPrice || 0,
+        entryDate: p.entryDate || new Date().toISOString().split('T')[0],
+        closeDate: new Date().toISOString().split('T')[0],
+        realizedPnl: p.realizedPnl || 0,
+        broker: p.broker || brokerDetected || undefined,
+        notes: `trans:${p.transCode || ''}; paired:${p.pairedWith ? 'yes' : 'no'}`,
+        importedFrom: 'CSV Import',
+        importDate: new Date().toISOString()
+      }));
+
+    // Save closed positions to history
+    if (selectedClosedForHistory.length > 0) {
+      saveClosedPositions(selectedClosedForHistory);
+    }
+
+    // Import open positions to main portfolio
+    onImport(selectedOpenPositions);
   };
 
-  const selectedCount = extractedPositionsOpen.filter(p => p.selected).length;
+  const selectedOpenCount = extractedPositionsOpen.filter(p => p.selected).length;
+  const selectedClosedCount = extractedPositionsClosed.filter(p => p.selected).length;
+  const totalSelectedCount = selectedOpenCount + selectedClosedCount;
 
   return (
     <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
@@ -677,21 +708,40 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
             )}
 
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-700">
-                {extractedPositionsOpen.length} open, {extractedPositionsClosed.length} closed/assigned
-              </p>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700">
+                  {extractedPositionsOpen.length} open, {extractedPositionsClosed.length} closed
+                </span>
+                {(selectedOpenCount > 0 || selectedClosedCount > 0) && (
+                  <span className="text-xs text-blue-600">
+                    ({selectedOpenCount} open + {selectedClosedCount} closed selected)
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: true })))}
+                  onClick={() => {
+                    setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: true })));
+                    setExtractedPositionsClosed(prev => prev.map(p => ({ ...p, selected: true })));
+                  }}
                   className="text-xs text-blue-600 hover:text-blue-800"
                 >
-                  Select All Open
+                  Select All
+                </button>
+                <button
+                  onClick={() => {
+                    setExtractedPositionsOpen(prev => prev.map(p => ({ ...p, selected: false })));
+                    setExtractedPositionsClosed(prev => prev.map(p => ({ ...p, selected: false })));
+                  }}
+                  className="text-xs text-gray-600 hover:text-gray-800"
+                >
+                  Clear All
                 </button>
                 <button
                   onClick={() => setShowClosedReview(prev => !prev)}
                   className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-700 hover:bg-gray-200"
                 >
-                  {showClosedReview ? 'Hide Closed / Assigned' : 'Review Closed / Assigned'}
+                  {showClosedReview ? 'Hide Closed' : 'Show Closed'}
                 </button>
               </div>
             </div>
@@ -816,51 +866,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
                   ))}
 
                   <div className="mt-3 flex gap-3">
-                    <button
-                      onClick={() => {
-                        // Import selected closed as closed trades (notes contain pairing info)
-                        const selectedClosed = extractedPositionsClosed.filter(p => p.selected).map(p => ({
-                          id: generateId(),
-                          ticker: p.ticker.toUpperCase(),
-                          optionType: p.optionType,
-                          side: p.side,
-                          strike: p.strike,
-                          expiry: p.expiry,
-                          quantity: p.quantity,
-                          entryPrice: p.entryPrice,
-                          entryDate: p.entryDate || new Date().toISOString().split('T')[0],
-                          broker: p.broker || brokerDetected || undefined,
-                          notes: `closed_import; trans:${p.transCode || ''}; realizedPnl:${p.realizedPnl ?? ''}; pairedWith:${p.pairedWith ?? ''}`
-                        } as OptionPosition));
-
-                        // Also save to closed positions history for P&L tracking
-                        const closedForHistory = extractedPositionsClosed.filter(p => p.selected).map(p => ({
-                          id: generateId(),
-                          ticker: p.ticker.toUpperCase(),
-                          optionType: p.optionType,
-                          side: p.side,
-                          strike: p.strike,
-                          expiry: p.expiry,
-                          quantity: p.quantity,
-                          entryPrice: p.entryPrice,
-                          closePrice: p.entryPrice, // For closed positions, the close price is what we paid/received to close
-                          entryDate: p.entryDate || new Date().toISOString().split('T')[0],
-                          closeDate: new Date().toISOString().split('T')[0],
-                          realizedPnl: p.realizedPnl || 0,
-                          broker: p.broker || brokerDetected || undefined,
-                          notes: `trans:${p.transCode || ''}; pairedWith:${p.pairedWith ?? ''}`,
-                          importedFrom: 'CSV Import',
-                          importDate: new Date().toISOString()
-                        }));
-                        saveClosedPositions(closedForHistory);
-
-                        onImport(selectedClosed);
-                      }}
-                      className="px-4 py-2 bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-900 disabled:opacity-50"
-                    >
-                      Import Selected Closed
-                    </button>
-                    <button onClick={() => setShowClosedReview(false)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-300">Close Review</button>
+                    <button onClick={() => setShowClosedReview(false)} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-300">Hide Closed</button>
                   </div>
                 </div>
               </div>
@@ -869,10 +875,11 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={handleImport}
-                disabled={selectedCount === 0}
+                disabled={totalSelectedCount === 0}
                 className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Import {selectedCount} Position{selectedCount !== 1 ? 's' : ''}
+                {totalSelectedCount === 0 ? 'Select positions to import' : 
+                  `Import ${selectedOpenCount > 0 ? `${selectedOpenCount} open` : ''}${selectedOpenCount > 0 && selectedClosedCount > 0 ? ' + ' : ''}${selectedClosedCount > 0 ? `${selectedClosedCount} closed` : ''}`}
               </button>
               <button
                 onClick={onCancel}
