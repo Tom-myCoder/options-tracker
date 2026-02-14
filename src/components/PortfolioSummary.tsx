@@ -17,8 +17,9 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
   const [showClosedHistory, setShowClosedHistory] = useState(false);
 
   useEffect(() => {
+    // Refresh closed positions whenever parent positions change (covers imports)
     setClosedPositions(getClosedPositions());
-  }, []);
+  }, [positions]);
   const calculateSummary = () => {
     const totalPositions = positions.length;
     const buyPositions = positions.filter(p => p.side === 'buy');
