@@ -387,13 +387,17 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
         setExtractedPositionsOpen([]);
         setExtractedPositionsClosed([]);
       } else {
-        // Filter to only valid option rows (must have ticker, strike>0, expiry, optionType)
-        const validPositions = positions.filter(p => 
-          p.ticker && p.ticker.length > 0 && 
-          p.strike > 0 && 
-          p.expiry && p.expiry.length > 0 && 
-          (p.optionType === 'call' || p.optionType === 'put')
-        );
+        // Filter to only valid option rows (must have ticker, strike>0, expiry, optionType, AND description containing Put/Call)
+        const validPositions = positions.filter(p => {
+          const hasOptionFormat = p.ticker && p.ticker.length > 0 && 
+            p.strike > 0 && 
+            p.expiry && p.expiry.length > 0 && 
+            (p.optionType === 'call' || p.optionType === 'put');
+          // Also check raw description contains Put or Call (filters out underlying stock buys, CUSIP rows, fees)
+          const rawDesc = (p.rawData?.['description'] || p.rawData?.['Description'] || '').toLowerCase();
+          const hasPutOrCall = rawDesc.includes('put') || rawDesc.includes('call');
+          return hasOptionFormat && hasPutOrCall;
+        });
 
         // Classify into Open (STO) and Closed (BTC/OASGN/others)
         const open: ExtractedPosition[] = [];
