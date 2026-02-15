@@ -411,13 +411,17 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
                 <tr>
                   <th className="px-3 py-2 text-left text-gray-900 font-medium">Ticker</th>
                   <th className="px-3 py-2 text-left text-gray-900 font-medium">Type</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Side</th>
                   <th className="px-3 py-2 text-right text-gray-900 font-medium">Strike</th>
                   <th className="px-3 py-2 text-left text-gray-900 font-medium">Expiry</th>
                   <th className="px-3 py-2 text-right text-gray-900 font-medium">Qty</th>
                   <th className="px-3 py-2 text-right text-gray-900 font-medium">Entry $</th>
                   <th className="px-3 py-2 text-right text-gray-900 font-medium">Close $</th>
                   <th className="px-3 py-2 text-right text-gray-900 font-medium">Realized P&L</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Open Date</th>
                   <th className="px-3 py-2 text-left text-gray-900 font-medium">Close Date</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Broker</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -425,6 +429,7 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
                   <tr key={pos.id} className="border-b hover:bg-gray-50">
                     <td className="px-3 py-2 font-medium text-gray-900">{pos.ticker}</td>
                     <td className="px-3 py-2 text-gray-900">{pos.optionType}</td>
+                    <td className="px-3 py-2 text-gray-900">{pos.side || '-'}</td>
                     <td className="px-3 py-2 text-right text-gray-900">{pos.strike}</td>
                     <td className="px-3 py-2 text-gray-900">{pos.expiry}</td>
                     <td className="px-3 py-2 text-right text-gray-900">{pos.quantity}</td>
@@ -433,7 +438,10 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
                     <td className={`px-3 py-2 text-right font-medium ${pos.realizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {pos.realizedPnl >= 0 ? '+' : ''}{formatCurrency(pos.realizedPnl)}
                     </td>
+                    <td className="px-3 py-2 text-gray-900">{pos.entryDate}</td>
                     <td className="px-3 py-2 text-gray-900">{pos.closeDate}</td>
+                    <td className="px-3 py-2 text-gray-900">{pos.broker || '-'}</td>
+                    <td className="px-3 py-2 text-gray-900 max-w-xs truncate">{pos.notes || '-'}</td>
                   </tr>
                 ))}
               </tbody>

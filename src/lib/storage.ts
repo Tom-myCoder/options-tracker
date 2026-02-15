@@ -446,27 +446,54 @@ export const exportClosedPositionsCSV = (): string => {
   const positions = getClosedPositions();
   if (positions.length === 0) return '';
   
-  const headers = ['Ticker', 'Type', 'Side', 'Strike', 'Expiry', 'Qty', 'Entry Price', 'Close Price', 'Entry Date', 'Close Date', 'Realized P&L', 'Broker', 'Notes'];
+  const headers = ['Ticker', 'Type', 'Side', 'Strike', 'Expiry', 'Qty', 'Entry Price', 'Close Price', 'Open Date', 'Close Date', 'Realized P&L', 'Broker', 'Notes'];
   const rows = positions.map(p => [
     p.ticker,
     p.optionType,
-    p.side,
+    p.side || '',
     p.strike,
     p.expiry,
     p.quantity,
-    p.entryPrice,
-    p.closePrice || '',
-    p.entryDate,
-    p.closeDate,
-    p.realizedPnl,
+    p.entryPrice != null ? p.entryPrice : '',
+    p.closePrice != null ? p.closePrice : '',
+    p.entryDate || '',
+    p.closeDate || '',
+    p.realizedPnl != null ? p.realizedPnl : '',
     p.broker || '',
     p.notes || ''
   ]);
   
-  return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  // CSV escaping for commas/quotes
+  const escape = (v: any) => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+
+  return [headers.join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
 };
 
 export const exportClosedPositionsJSON = (): string => {
   const positions = getClosedPositions();
-  return JSON.stringify(positions, null, 2);
+  // Normalize output to include new keys and keep ordering
+  const normalized = positions.map(p => ({
+    id: p.id,
+    ticker: p.ticker,
+    optionType: p.optionType,
+    side: p.side || '',
+    strike: p.strike,
+    expiry: p.expiry,
+    quantity: p.quantity,
+    entryPrice: p.entryPrice != null ? p.entryPrice : null,
+    closePrice: p.closePrice != null ? p.closePrice : null,
+    entryDate: p.entryDate || null,
+    closeDate: p.closeDate || null,
+    realizedPnl: p.realizedPnl != null ? p.realizedPnl : null,
+    broker: p.broker || null,
+    notes: p.notes || null,
+    importedFrom: p.importedFrom || null,
+    importDate: p.importDate || null
+  }));
+  return JSON.stringify(normalized, null, 2);
 };
