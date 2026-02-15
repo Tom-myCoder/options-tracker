@@ -409,15 +409,15 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left">Ticker</th>
-                  <th className="px-3 py-2 text-left">Type</th>
-                  <th className="px-3 py-2 text-right">Strike</th>
-                  <th className="px-3 py-2 text-left">Expiry</th>
-                  <th className="px-3 py-2 text-right">Qty</th>
-                  <th className="px-3 py-2 text-right">Entry $</th>
-                  <th className="px-3 py-2 text-right">Close $</th>
-                  <th className="px-3 py-2 text-right">Realized P&L</th>
-                  <th className="px-3 py-2 text-left">Close Date</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Ticker</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Type</th>
+                  <th className="px-3 py-2 text-right text-gray-900 font-medium">Strike</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Expiry</th>
+                  <th className="px-3 py-2 text-right text-gray-900 font-medium">Qty</th>
+                  <th className="px-3 py-2 text-right text-gray-900 font-medium">Entry $</th>
+                  <th className="px-3 py-2 text-right text-gray-900 font-medium">Close $</th>
+                  <th className="px-3 py-2 text-right text-gray-900 font-medium">Realized P&L</th>
+                  <th className="px-3 py-2 text-left text-gray-900 font-medium">Close Date</th>
                 </tr>
               </thead>
               <tbody>
