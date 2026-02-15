@@ -34,6 +34,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [extractedPositionsOpen, setExtractedPositionsOpen] = useState<ExtractedPosition[]>([]);
   const [extractedPositionsClosed, setExtractedPositionsClosed] = useState<ExtractedPosition[]>([]);
+  const [closedMatchesState, setClosedMatchesState] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [brokerDetected, setBrokerDetected] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -460,6 +461,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
             closedMatches.push({
               id: generateId(),
+              sourceId: c._id || null,
               ticker: c.ticker.toUpperCase(),
               optionType: c.optionType,
               side: c.side,
@@ -490,6 +492,7 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
             // leftover closed quantity without matching open
             closedMatches.push({
               id: generateId(),
+              sourceId: c._id || null,
               ticker: c.ticker.toUpperCase(),
               optionType: c.optionType,
               side: c.side,
@@ -511,6 +514,9 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
 
         // Filter out fully-closed open positions (remaining === 0 after pairing)
         const stillOpen = aggregatedOpen.filter(o => (o as any).remaining > 0);
+
+        // Keep closedMatches in state so the Import handler can save the per-match records
+        setClosedMatchesState(closedMatches);
 
         // Do NOT auto-save closed matches here to avoid duplicates.
         // Closed positions are saved when the user clicks the Import button (handleImport).
@@ -567,32 +573,43 @@ export default function FileImport({ onImport, onCancel }: FileImportProps) {
       } as OptionPosition));
 
     // Import selected CLOSED positions to history
-    const selectedClosedForHistory = extractedPositionsClosed
-      .filter(p => p.selected)
-      .map(p => {
-        const matchedOpen = extractedPositionsOpen.find(o => o._id && o._id === p.pairedWith) as ExtractedPosition | undefined;
-        const entryPriceFromOpen = matchedOpen ? matchedOpen.entryPrice : (p.entryPrice || 0);
-        const entryDateFromOpen = matchedOpen ? (matchedOpen.entryDate || (p.entryDate || new Date().toISOString().split('T')[0])) : (p.entryDate || new Date().toISOString().split('T')[0]);
+    // If we have per-match closed records from analysis (closedMatchesState), prefer those
+    const selectedClosedRowIds = extractedPositionsClosed.filter(p => p.selected).map(p => p._id);
+    let selectedClosedForHistory: any[] = [];
+    if (closedMatchesState && closedMatchesState.length > 0) {
+      // closedMatchesState items have sourceId referencing the original closed row id
+      selectedClosedForHistory = closedMatchesState.filter((cm: any) => selectedClosedRowIds.includes(cm.sourceId));
+    }
+    // Fallback: build from the extracted closed rows (one entry per row)
+    if (!selectedClosedForHistory || selectedClosedForHistory.length === 0) {
+      selectedClosedForHistory = extractedPositionsClosed
+        .filter(p => p.selected)
+        .map(p => {
+          const matchedOpen = extractedPositionsOpen.find(o => o._id && o._id === p.pairedWith) as ExtractedPosition | undefined;
+          const entryPriceFromOpen = matchedOpen ? matchedOpen.entryPrice : (p.entryPrice || 0);
+          const entryDateFromOpen = matchedOpen ? (matchedOpen.entryDate || (p.entryDate || new Date().toISOString().split('T')[0])) : (p.entryDate || new Date().toISOString().split('T')[0]);
 
-        return ({
-          id: generateId(),
-          ticker: p.ticker.toUpperCase(),
-          optionType: p.optionType,
-          side: p.side,
-          strike: p.strike,
-          expiry: p.expiry,
-          quantity: p.quantity,
-          entryPrice: entryPriceFromOpen,
-          closePrice: p.entryPrice || 0,
-          entryDate: entryDateFromOpen,
-          closeDate: p.entryDate || new Date().toISOString().split('T')[0],
-          realizedPnl: p.realizedPnl || 0,
-          broker: p.broker || brokerDetected || undefined,
-          notes: `trans:${p.transCode || ''}; paired:${p.pairedWith ? 'yes' : 'no'}`,
-          importedFrom: 'CSV Import',
-          importDate: new Date().toISOString()
+          return ({
+            id: generateId(),
+            ticker: p.ticker.toUpperCase(),
+            optionType: p.optionType,
+            side: p.side,
+            strike: p.strike,
+            expiry: p.expiry,
+            quantity: p.quantity,
+            entryPrice: entryPriceFromOpen,
+            closePrice: p.entryPrice || 0,
+            entryDate: entryDateFromOpen,
+            closeDate: p.entryDate || new Date().toISOString().split('T')[0],
+            realizedPnl: p.realizedPnl || 0,
+            broker: p.broker || brokerDetected || undefined,
+            notes: `trans:${p.transCode || ''}; paired:${p.pairedWith ? 'yes' : 'no'}`,
+            importedFrom: 'CSV Import',
+            importDate: new Date().toISOString()
+          });
         });
-      });
+    }
+
 
     // Save closed positions to history
     if (selectedClosedForHistory.length > 0) {
