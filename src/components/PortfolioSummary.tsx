@@ -423,17 +423,17 @@ export default function PortfolioSummary({ positions }: PortfolioSummaryProps) {
               <tbody>
                 {closedPositions.map((pos) => (
                   <tr key={pos.id} className="border-b hover:bg-gray-50">
-                    <td className="px-3 py-2 font-medium">{pos.ticker}</td>
-                    <td className="px-3 py-2">{pos.optionType}</td>
-                    <td className="px-3 py-2 text-right">{pos.strike}</td>
-                    <td className="px-3 py-2">{pos.expiry}</td>
-                    <td className="px-3 py-2 text-right">{pos.quantity}</td>
-                    <td className="px-3 py-2 text-right">{pos.entryPrice?.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right">{pos.closePrice?.toFixed(2) || '-'}</td>
+                    <td className="px-3 py-2 font-medium text-gray-900">{pos.ticker}</td>
+                    <td className="px-3 py-2 text-gray-900">{pos.optionType}</td>
+                    <td className="px-3 py-2 text-right text-gray-900">{pos.strike}</td>
+                    <td className="px-3 py-2 text-gray-900">{pos.expiry}</td>
+                    <td className="px-3 py-2 text-right text-gray-900">{pos.quantity}</td>
+                    <td className="px-3 py-2 text-right text-gray-900">{pos.entryPrice?.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right text-gray-900">{pos.closePrice?.toFixed(2) || '-'}</td>
                     <td className={`px-3 py-2 text-right font-medium ${pos.realizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {pos.realizedPnl >= 0 ? '+' : ''}{formatCurrency(pos.realizedPnl)}
                     </td>
-                    <td className="px-3 py-2">{pos.closeDate}</td>
+                    <td className="px-3 py-2 text-gray-900">{pos.closeDate}</td>
                   </tr>
                 ))}
               </tbody>
