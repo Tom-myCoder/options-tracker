@@ -377,7 +377,8 @@ export const getClosedPositions = (): ClosedPosition[] => {
   try {
     const parsed: ClosedPosition[] = JSON.parse(stored);
     // Deduplicate on read by stable signature
-    const sig = (p: ClosedPosition) => `${p.ticker}|${p.optionType}|${Math.round(p.strike*100)/100}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}`;
+    // Include sourceId/import marker in signature when available to avoid collapsing distinct rows
+  const sig = (p: any) => `${p.ticker}|${p.optionType}|${Math.round(p.strike*100)/100}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}|${p.sourceId || p.importDate || ''}`;
     const seen = new Set<string>();
     const unique: ClosedPosition[] = [];
     for (const p of parsed) {
@@ -414,7 +415,8 @@ export const saveClosedPositions = (newPositions: ClosedPosition[]): void => {
   const merged = [...existing];
 
   // Helper to compute a stable signature for deduplication (ignore minor P&L calc differences)
-  const sig = (p: ClosedPosition) => `${p.ticker}|${p.optionType}|${Math.round(p.strike*100)/100}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}`;
+  // Include sourceId/import marker in signature when available to avoid collapsing distinct rows
+  const sig = (p: any) => `${p.ticker}|${p.optionType}|${Math.round(p.strike*100)/100}|${p.expiry}|${p.quantity}|${p.entryDate}|${p.closeDate}|${p.sourceId || p.importDate || ''}`;
 
   for (const pos of newPositions) {
     const s = sig(pos);
